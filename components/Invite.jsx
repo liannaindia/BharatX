@@ -12,7 +12,7 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
   const [modalLoading, setModalLoading] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
 
-  // New stats
+  // Stats
   const [totalCount, setTotalCount] = useState(0);
   const [level1Count, setLevel1Count] = useState(0);
   const [level2Count, setLevel2Count] = useState(0);
@@ -24,19 +24,19 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
     level3: [],
   });
 
-  // Copy invitation code
+  // Copy code
   const copyCode = () => {
     navigator.clipboard.writeText(referralCode);
     alert("Invitation code copied!");
   };
 
-  // Mask phone: 138****5678
+  // Mask phone
   const maskPhone = (phone) => {
     if (!phone || phone.length < 8) return phone;
     return phone.slice(0, 3) + "****" + phone.slice(-4);
   };
 
-  // === 加载自己的邀请码 ===
+  // === 加载邀请码 ===
   useEffect(() => {
     if (!isLoggedIn || !userId) {
       setReferralCode("N/A");
@@ -59,33 +59,37 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
     loadReferralCode();
   }, [userId, isLoggedIn]);
 
-  // === 加载下线树数据（不包含自己）===
+  // === 加载下线树数据（关键修复）===
   const loadTreeData = async () => {
-    if (!userId) return;
+    // 关键校验：userId 必须是有效数字
+    if (!userId || isNaN(userId) || Number(userId) <= 0) {
+      console.warn("Invalid userId for RPC:", userId);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      const uid = Number(userId); // 强制转数字
+
       const { data: treeData, error: treeErr } = await supabase
-        .rpc("get_referral_tree", { p_user_id: userId });
+        .rpc("get_referral_tree", { p_user_id: uid });
 
-      if (treeErr) throw treeErr;
+      if (treeErr) {
+        console.error("RPC get_referral_tree failed:", treeErr);
+        throw treeErr;
+      }
 
-      // 重置
+      // 统计
       let l1 = 0, l2 = 0, l3 = 0, effective = 0;
       const dl1 = [], dl2 = [], dl3 = [];
 
       treeData?.forEach((u) => {
         const recharge = Number(u.total_recharge) || 0;
 
-        if (u.level === 1) {
-          l1++;
-          dl1.push({ ...u, total_recharge: recharge });
-        } else if (u.level === 2) {
-          l2++;
-          dl2.push({ ...u, total_recharge: recharge });
-        } else if (u.level === 3) {
-          l3++;
-          dl3.push({ ...u, total_recharge: recharge });
-        }
+        if (u.level === 1) { l1++; dl1.push({ ...u, total_recharge: recharge }); }
+        else if (u.level === 2) { l2++; dl2.push({ ...u, total_recharge: recharge }); }
+        else if (u.level === 3) { l3++; dl3.push({ ...u, total_recharge: recharge }); }
 
         if (recharge >= 115) effective++;
       });
@@ -99,12 +103,13 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
       setEffectiveCount(effective);
       setDownlineByLevel({ level1: dl1, level2: dl2, level3: dl3 });
 
-      // 兼容旧字段（直邀用户列表）
+      // 兼容旧字段
       setDownlineCount(l1);
       setDownlineUsers(dl1.map(u => ({
         phone_number: u.phone_number,
         created_at: u.created_at
       })));
+
     } catch (err) {
       console.error("Load tree data error:", err);
     } finally {
@@ -112,18 +117,18 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
     }
   };
 
-  // 初始加载
+  // === 初始加载 ===
   useEffect(() => {
-    if (isLoggedIn && userId) {
+    if (isLoggedIn && userId && !isNaN(userId)) {
       loadTreeData();
     } else {
       setLoading(false);
     }
   }, [userId, isLoggedIn]);
 
-  // === 实时监听：新用户注册（仅 level 1）===
+  // === 实时监听新用户（仅 level 1）===
   useEffect(() => {
-    if (!isLoggedIn || !userId) return;
+    if (!isLoggedIn || !userId || isNaN(userId)) return;
 
     const channel = supabase
       .channel(`invite-updates-${userId}`)
@@ -162,7 +167,7 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
     };
   }, [userId, isLoggedIn]);
 
-  // 显示模态框并刷新数据
+  // === 打开模态框并刷新数据 ===
   const handleShowDownline = async () => {
     if (!userId || totalCount === 0) return;
     setModalLoading(true);
@@ -209,7 +214,7 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
         </div>
       </div>
 
-      {/* My Invitation Code */}
+      {/* Invitation Code */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
         <div className="text-sm text-slate-600 mb-1">My Invitation Code</div>
         <div className="flex items-center justify-between border border-slate-100 rounded-lg px-3 py-2">
@@ -226,7 +231,7 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
         </div>
       </div>
 
-      {/* Team Level Reward Model */}
+      {/* Reward Model */}
       <div className="mt-5 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl shadow-lg overflow-hidden">
         <button
           onClick={() => setShowRewards(!showRewards)}

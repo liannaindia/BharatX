@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom"; // 添加的 import
 import HomePage from "./components/Home.jsx";
 import MarketsPage from "./components/Markets.jsx";
 import TradePage from "./components/Trade.jsx";
@@ -137,24 +136,44 @@ export default function App() {
     };
   }, [isLoggedIn, userId]); // 依赖 isLoggedIn 和 userId
 
+  const renderPage = () => {
+    switch (tab) {
+      case "markets":
+        return <MarketsPage setTab={setTab} />;
+      case "login":
+        return <LoginPage setTab={setTab} setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />; // 新增 setUserId
+      case "register":
+        return <RegisterPage setTab={setTab} setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />; // 新增 setUserId
+      case "trade":
+        return <TradePage setTab={setTab} isLoggedIn={isLoggedIn} balance={balance} availableBalance={availableBalance} userId={userId} />;
+      case "positions":
+        return <PositionsPage setTab={setTab} isLoggedIn={isLoggedIn} balance={balance} availableBalance={availableBalance} userId={userId} />;
+      case "me":
+        return <MePage setTab={setTab} balance={balance} availableBalance={availableBalance} isLoggedIn={isLoggedIn} userId={userId} setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />;
+      case "transactions":
+        return <TransactionsPage setTab={setTab} userId={userId} isLoggedIn={isLoggedIn} />;
+      case "followorder":
+        return <FollowOrderPage setTab={setTab} userId={userId} isLoggedIn={isLoggedIn} />;
+      case "recharge":
+        return <RechargePage setTab={setTab} balance={balance} isLoggedIn={isLoggedIn} userId={userId} />;
+      case "withdraw":
+        return <WithdrawPage setTab={setTab} balance={balance} availableBalance={availableBalance} isLoggedIn={isLoggedIn} userId={userId} />;
+      case "invite":
+        return <InvitePage setTab={setTab} userId={userId} isLoggedIn={isLoggedIn} />;
+      default:
+        return <HomePage setTab={setTab} isLoggedIn={isLoggedIn} balance={balance} />;
+    }
+  };
+
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<LoginPage setTab={setTab} setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />} />
-        <Route path="/register" element={<RegisterPage setTab={setTab} setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />} />
-        <Route path="/home" element={<HomePage setTab={setTab} isLoggedIn={isLoggedIn} balance={balance} />} />
-        <Route path="/markets" element={<MarketsPage setTab={setTab} />} />
-        <Route path="/trade" element={<TradePage setTab={setTab} isLoggedIn={isLoggedIn} balance={balance} availableBalance={availableBalance} userId={userId} />} />
-        <Route path="/positions" element={<PositionsPage setTab={setTab} isLoggedIn={isLoggedIn} balance={balance} availableBalance={availableBalance} userId={userId} />} />
-        <Route path="/me" element={<MePage setTab={setTab} balance={balance} availableBalance={availableBalance} isLoggedIn={isLoggedIn} userId={userId} setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />} />
-        <Route path="/transactions" element={<TransactionsPage setTab={setTab} userId={userId} isLoggedIn={isLoggedIn} />} />
-        <Route path="/followorder" element={<FollowOrderPage setTab={setTab} userId={userId} isLoggedIn={isLoggedIn} />} />
-        <Route path="/recharge" element={<RechargePage setTab={setTab} balance={balance} isLoggedIn={isLoggedIn} userId={userId} />} />
-        <Route path="/withdraw" element={<WithdrawPage setTab={setTab} balance={balance} availableBalance={availableBalance} isLoggedIn={isLoggedIn} userId={userId} />} />
-        <Route path="/invite" element={<InvitePage setTab={setTab} userId={userId} isLoggedIn={isLoggedIn} />} />
-        {/* Default route */}
-        <Route path="/" element={<HomePage setTab={setTab} isLoggedIn={isLoggedIn} balance={balance} />} />
-      </Routes>
-    </Router>
+    <div className="min-h-screen bg-slate-100 text-slate-900">
+      <div className="max-w-md mx-auto bg-[#f5f7fb] pb-24 min-h-screen text-slate-900">
+        {renderPage()}
+      </div>
+
+      <div className="max-w-md mx-auto w-full fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-none">
+        <BottomNav tab={tab} setTab={setTab} />
+      </div>
+    </div>
   );
 }

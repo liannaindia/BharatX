@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabaseClient";
 
 export default function RechargeManagement() {
@@ -7,28 +7,26 @@ export default function RechargeManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  useEffect(() => {
-    fetchRecharges();
-  }, [currentPage]);
-
-  const fetchRecharges = async () => {
+  /* ------------------- 1. 把 fetchRecharges 包装成 useCallback ------------------- */
+  const fetchRecharges = useCallback(async () => {
     try {
       setLoading(true);
       const from = (currentPage - 1) * pageSize;
       const to = from + pageSize - 1;
 
+      /* 2. 删除重复的 created_at（只保留在 order 中） */
       const { data, error, count } = await supabase
         .from("recharges")
         .select(
           `
-          id, user_id, amount, channel_id, status, created_at,
+          id, user_id, amount, channel_id, status, created_at, tx_id,
           users (phone_number),
           channels (currency_name)
         `,
           { count: "exact" }
         )
         .range(from, to)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }); // ← 只在这里排序
 
       if (error) throw error;
 
@@ -37,16 +35,24 @@ export default function RechargeManagement() {
         phone_number: r.users?.phone_number || "未知",
         currency_name: r.channels?.currency_name || "未知通道",
         created_at: formatChinaTime(r.created_at),
+        tx_id: r.tx_id || "无",
       }));
 
       setRecharges({ data: formatted, total: count || 0 });
-    } catch (error) {
-      console.error("获取充值记录失败:", error);
-      alert("加载失败，请刷新重试。");
+    } catch (err) {
+      console.error("获取充值记录失败:", err);
+      /* 3. 统一处理 Supabase 错误对象 */
+      const msg = err?.message || "未知错误，请检查网络或联系管理员";
+      alert(`加载失败：${msg}`);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage]); // ← 依赖 currentPage
+
+  /* ------------------- 4. useEffect 正确声明依赖 ------------------- */
+  useEffect(() => {
+    fetchRecharges();
+  }, [fetchRecharges]);
 
   const formatChinaTime = (utcTime) => {
     const date = new Date(utcTime);
@@ -60,6 +66,13 @@ export default function RechargeManagement() {
       hour12: false,
       timeZone: "Asia/Shanghai",
     }).format(date);
+  };
+
+  /* ------------------- 复制 tx_id（保持原有） ------------------- */
+  const copyTxId = (txId) => {
+    navigator.clipboard.writeText(txId).then(() => {
+      alert("交易哈希已复制！");
+    });
   };
 
   const handleApprove = async (id, user_id, amount) => {
@@ -80,7 +93,7 @@ export default function RechargeManagement() {
       alert("充值已批准！");
       fetchRecharges();
     } catch (error) {
-      alert("操作失败: " + error.message);
+      alert("操作失败: " + (error?.message || "未知错误"));
     }
   };
 
@@ -94,7 +107,7 @@ export default function RechargeManagement() {
       alert("充值已拒绝！");
       fetchRecharges();
     } catch (error) {
-      alert("操作失败: " + error.message);
+      alert("操作失败: " + (error?.message || "未知错误"));
     }
   };
 
@@ -118,6 +131,7 @@ export default function RechargeManagement() {
               <th className="admin-table th">手机号</th>
               <th className="admin-table th">金额</th>
               <th className="admin-table th">通道</th>
+              <th className="admin-table th">交易哈希</th>
               <th className="admin-table th">时间</th>
               <th className="admin-table th">状态</th>
               <th className="admin-table th">操作</th>
@@ -126,7 +140,7 @@ export default function RechargeManagement() {
           <tbody>
             {recharges.data.length === 0 ? (
               <tr>
-                <td colSpan="6" className="py-8 text-center text-gray-500">
+                <td colSpan="7" className="py-8 text-center text-gray-500">
                   暂无充值记录
                 </td>
               </tr>
@@ -140,6 +154,42 @@ export default function RechargeManagement() {
                     ${r.amount}
                   </td>
                   <td className="admin-table td">{r.currency_name}</td>
+
+                  {/* tx_id 列 */}
+                  <td className="admin-table td">
+                    <div className="flex items-center gap-1">
+                      <span
+                        className="font-mono text-xs text-gray-600 cursor-pointer hover:text-blue-600 transition"
+                        onClick={() => copyTxId(r.tx_id)}
+                        title="点击复制"
+                      >
+                        {r.tx_id.length > 12
+                          ? `${r.tx_id.slice(0, 6)}...${r.tx_id.slice(-6)}`
+                          : r.tx_id}
+                      </span>
+                      <button
+                        onClick={() => copyTxId(r.tx_id)}
+                        className="text-gray-400 hover:text-blue-600 transition"
+                        title="复制"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+
                   <td className="admin-table td text-gray-500">{r.created_at}</td>
                   <td className="admin-table td">
                     <span

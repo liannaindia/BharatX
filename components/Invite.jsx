@@ -36,13 +36,12 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
     return phone.slice(0, 3) + "****" + phone.slice(-4);
   };
 
-  // === 单独加载自己的邀请码（只执行一次）===
+  // === 加载自己的邀请码 ===
   useEffect(() => {
     if (!isLoggedIn || !userId) {
       setReferralCode("N/A");
       return;
     }
-
     const loadReferralCode = async () => {
       try {
         const { data, error } = await supabase
@@ -50,7 +49,6 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
           .select("referral_code")
           .eq("id", userId)
           .single();
-
         if (error) throw error;
         setReferralCode(data.referral_code || "N/A");
       } catch (err) {
@@ -58,38 +56,38 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
         setReferralCode("Error");
       }
     };
-
     loadReferralCode();
   }, [userId, isLoggedIn]);
 
-  // === 加载下线树数据（不包含 referral_code 查询）===
+  // === 加载下线树数据（不包含自己）===
   const loadTreeData = async () => {
     if (!userId) return;
-
     try {
       setLoading(true);
-
       const { data: treeData, error: treeErr } = await supabase
         .rpc("get_referral_tree", { p_user_id: userId });
 
       if (treeErr) throw treeErr;
 
-      // Calculate stats
+      // 重置
       let l1 = 0, l2 = 0, l3 = 0, effective = 0;
       const dl1 = [], dl2 = [], dl3 = [];
 
       treeData?.forEach((u) => {
+        const recharge = Number(u.total_recharge) || 0;
+
         if (u.level === 1) {
           l1++;
-          dl1.push(u);
+          dl1.push({ ...u, total_recharge: recharge });
         } else if (u.level === 2) {
           l2++;
-          dl2.push(u);
+          dl2.push({ ...u, total_recharge: recharge });
         } else if (u.level === 3) {
           l3++;
-          dl3.push(u);
+          dl3.push({ ...u, total_recharge: recharge });
         }
-        if (Number(u.total_recharge) >= 115) effective++;
+
+        if (recharge >= 115) effective++;
       });
 
       const total = l1 + l2 + l3;
@@ -101,9 +99,12 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
       setEffectiveCount(effective);
       setDownlineByLevel({ level1: dl1, level2: dl2, level3: dl3 });
 
-      // Keep backward compatibility
+      // 兼容旧字段（直邀用户列表）
       setDownlineCount(l1);
-      setDownlineUsers(dl1.map((u) => ({ phone_number: u.phone_number, created_at: u.created_at })));
+      setDownlineUsers(dl1.map(u => ({
+        phone_number: u.phone_number,
+        created_at: u.created_at
+      })));
     } catch (err) {
       console.error("Load tree data error:", err);
     } finally {
@@ -111,7 +112,7 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
     }
   };
 
-  // Initial load tree data
+  // 初始加载
   useEffect(() => {
     if (isLoggedIn && userId) {
       loadTreeData();
@@ -120,7 +121,7 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
     }
   }, [userId, isLoggedIn]);
 
-  // Realtime: new user registered under me (level 1 only)
+  // === 实时监听：新用户注册（仅 level 1）===
   useEffect(() => {
     if (!isLoggedIn || !userId) return;
 
@@ -136,26 +137,21 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
         },
         (payload) => {
           const newUser = payload.new;
-          setLevel1Count((prev) => prev + 1);
-          setTotalCount((prev) => prev + 1);
-          setDownlineCount((prev) => prev + 1);
-          setDownlineUsers((prev) => [
-            {
+          setLevel1Count(prev => prev + 1);
+          setTotalCount(prev => prev + 1);
+          setDownlineCount(prev => prev + 1);
+          setDownlineUsers(prev => [{
+            phone_number: newUser.phone_number,
+            created_at: newUser.created_at,
+          }, ...prev]);
+          setDownlineByLevel(prev => ({
+            ...prev,
+            level1: [{
               phone_number: newUser.phone_number,
               created_at: newUser.created_at,
-            },
-            ...prev,
-          ]);
-          setDownlineByLevel((prev) => ({
-            ...prev,
-            level1: [
-              {
-                phone_number: newUser.phone_number,
-                created_at: newUser.created_at,
-                total_recharge: 0,
-              },
-              ...prev.level1,
-            ],
+              total_recharge: 0,
+              level: 1,
+            }, ...prev.level1],
           }));
         }
       )
@@ -166,12 +162,12 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
     };
   }, [userId, isLoggedIn]);
 
-  // Show modal with refreshed data
+  // 显示模态框并刷新数据
   const handleShowDownline = async () => {
     if (!userId || totalCount === 0) return;
     setModalLoading(true);
     setShowModal(true);
-    await loadTreeData(); // 只刷新下线数据
+    await loadTreeData();
     setModalLoading(false);
   };
 
@@ -188,31 +184,22 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 mb-5">
-        {/* Total */}
         <div className="bg-gradient-to-br from-purple-500 to-pink-500 text-white p-4 rounded-xl shadow-sm">
           <div className="text-xs opacity-90">Total Users</div>
           <div className="text-2xl font-bold">{loading ? "..." : totalCount}</div>
         </div>
-
-        {/* Level 1 */}
         <div className="bg-gradient-to-br from-orange-400 to-red-500 text-white p-4 rounded-xl shadow-sm">
           <div className="text-xs opacity-90">Level 1</div>
           <div className="text-2xl font-bold">{loading ? "..." : level1Count}</div>
         </div>
-
-        {/* Level 2 */}
         <div className="bg-gradient-to-br from-yellow-400 to-amber-500 text-white p-4 rounded-xl shadow-sm">
           <div className="text-xs opacity-90">Level 2</div>
           <div className="text-2xl font-bold">{loading ? "..." : level2Count}</div>
         </div>
-
-        {/* Level 3 */}
         <div className="bg-gradient-to-br from-green-400 to-emerald-500 text-white p-4 rounded-xl shadow-sm">
           <div className="text-xs opacity-90">Level 3</div>
           <div className="text-2xl font-bold">{loading ? "..." : level3Count}</div>
         </div>
-
-        {/* Effective Users (full width) */}
         <div
           className="col-span-2 bg-gradient-to-br from-cyan-500 to-blue-600 text-white p-4 rounded-xl shadow-sm cursor-pointer"
           onClick={handleShowDownline}
@@ -239,7 +226,7 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
         </div>
       </div>
 
-      {/* === Team Level Reward Model (Collapsible) === */}
+      {/* Team Level Reward Model */}
       <div className="mt-5 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl shadow-lg overflow-hidden">
         <button
           onClick={() => setShowRewards(!showRewards)}
@@ -251,7 +238,6 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
           </div>
           {showRewards ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </button>
-
         {showRewards && (
           <div className="bg-white p-4 max-h-96 overflow-y-auto">
             <div className="text-xs text-slate-500 mb-3 text-center">
@@ -302,7 +288,7 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
         Share your code to invite friends and earn rewards!
       </div>
 
-      {/* === Downline Users Modal === */}
+      {/* Downline Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm max-h-[80vh] overflow-hidden shadow-xl">
@@ -310,14 +296,10 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
               <h3 className="font-semibold text-slate-800">
                 Downline Users ({totalCount})
               </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
-
             <div className="p-4 max-h-[60vh] overflow-y-auto">
               {modalLoading ? (
                 <div className="text-center py-8 text-slate-500">Loading...</div>
@@ -329,7 +311,6 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
                     const level = idx + 1;
                     const users = downlineByLevel[`level${level}`];
                     if (!users || users.length === 0) return null;
-
                     return (
                       <div key={level}>
                         <div className="font-semibold text-slate-700 mb-2">
@@ -340,13 +321,13 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
                             <div
                               key={i}
                               className={`flex justify-between items-center p-3 rounded-lg ${
-                                Number(user.total_recharge) >= 115 ? "bg-green-50 border border-green-300" : "bg-slate-50"
+                                user.total_recharge >= 115 ? "bg-green-50 border border-green-300" : "bg-slate-50"
                               }`}
                             >
                               <div>
                                 <div className="font-mono text-slate-700">
                                   {maskPhone(user.phone_number)}
-                                  {Number(user.total_recharge) >= 115 && " (Effective)"}
+                                  {user.total_recharge >= 115 && " (Effective)"}
                                 </div>
                                 <div className="text-xs text-slate-500">
                                   Recharge: ${Number(user.total_recharge).toFixed(2)}

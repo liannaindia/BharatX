@@ -11,6 +11,22 @@ import LoginPage from "./components/Login.jsx";
 import RegisterPage from "./components/Register.jsx";
 import FollowOrderPage from "./components/FollowOrder.jsx";
 import BottomNav from "./BottomNav";
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/markets" element={<MarketsPage />} />
+        {/* 其他页面路由 */}
+      </Routes>
+    </Router>
+  );
+}
+
 import TransactionsPage from "./components/Transactions.jsx";
 import { supabase } from "./supabaseClient";
 

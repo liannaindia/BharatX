@@ -9,6 +9,6 @@ export default defineConfig({
     host: '0.0.0.0',    // 监听所有网络接口
   },
   preview: {
-    allowedHosts: ['ganesh-trade.onrender.com']  // 允许指定的主机访问
+    allowedHosts: ['bharatx.netlify.app']  // 允许指定的主机访问
   }
 })

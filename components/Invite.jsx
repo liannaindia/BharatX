@@ -60,29 +60,29 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
   }, [userId, isLoggedIn]);
 
   // === 加载下线树数据（关键修复）===
-  const loadTreeData = async () => {
+ const loadTreeData = async () => {
   if (!userId || isNaN(userId) || Number(userId) <= 0) {
-    console.warn("Invalid userId for RPC:", userId);
+    console.warn("Invalid userId:", userId);
     setLoading(false);
     return;
   }
 
+  const uid = parseInt(userId, 10);
+  
+  console.log("Calling RPC with:", { p_user_id: uid }); // 调试必加！
+
   try {
     setLoading(true);
-    const uid = Number(userId);
 
     const { data: treeData, error: treeErr } = await supabase
-      .rpc("get_referral_tree", { p_user_id: uid });
+      .rpc("get_referral_tree", { p_user_id: uid }); // 必须是 p_user_id
 
     if (treeErr) {
-      console.error("RPC get_referral_tree failed:", treeErr);
-      if (treeErr.message?.includes?.('integer')) {
-        alert("Login error, please log in again.");
-      }
+      console.error("RPC Error:", treeErr);
       throw treeErr;
     }
 
-    // 统计逻辑保持不变...
+  
 
       // 统计
       let l1 = 0, l2 = 0, l3 = 0, effective = 0;

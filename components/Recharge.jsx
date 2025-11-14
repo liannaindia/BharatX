@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
-import { ArrowLeft, Shield, Zap, CheckCircle, Copy, AlertCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, Copy, AlertCircle } from "lucide-react";
 
 export default function Recharge({ setTab, isLoggedIn, userId }) {
   const [amount, setAmount] = useState("");
@@ -10,7 +10,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("usdt"); // 控制显示的充值通道
+  const [activeTab, setActiveTab] = useState("usdt"); // 保留 Tab 状态（仅装饰）
   const quickAmounts = [10, 50, 100, 500];
 
   // 读取可用通道
@@ -20,7 +20,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
       try {
         const { data, error } = await supabase
           .from("channels")
-          .select("id, currency_name, wallet_address, upi_id, bank_name, bank_ac, bank_ifsc") // 获取新增的字段
+          .select("id, currency_name, wallet_address, upi_id, bank_name, bank_ac, bank_ifsc")
           .eq("status", "active")
           .order("id");
         if (error) throw error;
@@ -37,6 +37,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
 
   // 复制到剪贴板
   const copyToClipboard = (text) => {
+    if (!text) return;
     navigator.clipboard.writeText(text).then(() => {
       alert("Copied to clipboard!");
     });
@@ -70,7 +71,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         channel_id: selectedChannel.id,
         amount: num,
         status: "pending",
-        tx_id: txId.trim(), // 写入 tx_id
+        tx_id: txId.trim(),
       });
       if (error) throw error;
       alert("Recharge request submitted successfully! Awaiting confirmation.");
@@ -140,7 +141,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         </h2>
       </div>
 
-      {/* Network Switcher */}
+      {/* Network Switcher (保留但不影响显示) */}
       <div style={{ marginTop: "12px", display: "flex", justifyContent: "center" }}>
         <button
           onClick={() => setActiveTab("usdt")}
@@ -180,7 +181,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         </button>
       </div>
 
-      {/* Channels */}
+      {/* Channels - 移除 filter，全部显示 */}
       <div style={{ marginTop: "12px" }}>
         <h3 style={{ fontSize: "14px", fontWeight: "600", color: "#374151" }}>
           <span style={{ color: "#ea580c" }}>Select Network</span>
@@ -191,96 +192,88 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           <div style={{ textAlign: "center", padding: "24px 0", color: "#6b7280" }}>No active channels</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
-            {channels
-              .filter((ch) => {
-                if (activeTab === "usdt") return ch.currency_name.includes("USDT");
-                if (activeTab === "upi") return ch.upi_id && ch.currency_name.includes("UPI");
-                if (activeTab === "bank") return ch.bank_name && ch.currency_name.includes("BANK");
-                return false;
-              })
-              .map((ch) => (
-                <div
-                  key={ch.id}
-                  onClick={() => setSelectedChannel(ch)}
-                  style={{
-                    position: "relative",
-                    background: "white",
-                    borderRadius: "16px",
-                    padding: "16px",
-                    boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
-                    border: selectedChannel?.id === ch.id ? "2px solid #f97316" : "2px solid #e5e7eb",
-                    cursor: "pointer",
-                    transition: "all 0.3s",
-                    transform: selectedChannel?.id === ch.id ? "scale(1.02)" : "scale(1)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <div
-                        style={{
-                          width: "48px",
-                          height: "48px",
-                          background: "linear-gradient(to bottom right, #f97316, #ec4899)",
-                          borderRadius: "12px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "white",
-                          fontWeight: "bold",
-                          fontSize: "18px",
-                        }}
-                      >
-                        {activeTab === "usdt" ? "T" : activeTab === "upi" ? "U" : "B"}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: "bold", color: "#1f2937" }}>
-                          {ch.currency_name}
+            {channels.map((ch) => (
+              <div
+                key={ch.id}
+                onClick={() => setSelectedChannel(ch)}
+                style={{
+                  position: "relative",
+                  background: "white",
+                  borderRadius: "16px",
+                  padding: "16px",
+                  boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+                  border: selectedChannel?.id === ch.id ? "2px solid #f97316" : "2px solid #e5e7eb",
+                  cursor: "pointer",
+                  transition: "all 0.3s",
+                  transform: selectedChannel?.id === ch.id ? "scale(1.02)" : "scale(1)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div
+                      style={{
+                        width: "48px",
+                        height: "48px",
+                        background: "linear-gradient(to bottom right, #f97316, #ec4899)",
+                        borderRadius: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "white",
+                        fontWeight: "bold",
+                        fontSize: "18px",
+                      }}
+                    >
+                      {ch.currency_name.toLowerCase().includes("usdt") || ch.currency_name.includes("TRC20") ? "T" :
+                       ch.currency_name.toLowerCase().includes("upi") ? "U" :
+                       ch.currency_name.toLowerCase().includes("bank") ? "B" : "C"}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: "bold", color: "#1f2937" }}>{ch.currency_name}</div>
+
+                      {/* 动态显示所有可用字段 */}
+                      {ch.wallet_address && (
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#6b7280",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            maxWidth: "160px",
+                            cursor: "pointer",
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyToClipboard(ch.wallet_address);
+                          }}
+                        >
+                          {ch.wallet_address}
+                          <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
                         </div>
+                      )}
 
-                        {/* USDT: 显示钱包地址 */}
-                        {activeTab === "usdt" && ch.wallet_address && (
-                          <div
-                            style={{
-                              fontSize: "12px",
-                              color: "#6b7280",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              maxWidth: "160px",
-                              cursor: "pointer",
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(ch.wallet_address);
-                            }}
-                          >
-                            {ch.wallet_address}
-                            <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
-                          </div>
-                        )}
+                      {ch.upi_id && (
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#6b7280",
+                            cursor: "pointer",
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyToClipboard(ch.upi_id);
+                          }}
+                        >
+                          {ch.upi_id}
+                          <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
+                        </div>
+                      )}
 
-                        {/* UPI: 显示 UPI ID */}
-                        {activeTab === "upi" && ch.upi_id && (
-                          <div
-                            style={{
-                              fontSize: "12px",
-                              color: "#6b7280",
-                              cursor: "pointer",
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(ch.upi_id);
-                            }}
-                          >
-                            {ch.upi_id}
-                            <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
-                          </div>
-                        )}
-
-                        {/* Bank: 显示银行信息 */}
-                        {activeTab === "bank" && ch.bank_name && (
-                          <div style={{ fontSize: "12px", color: "#6b7280" }}>
-                            <div><strong>Bank:</strong> {ch.bank_name}</div>
+                      {ch.bank_name && (
+                        <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                          <div><strong>Bank:</strong> {ch.bank_name}</div>
+                          {ch.bank_ac && (
                             <div
                               style={{ cursor: "pointer" }}
                               onClick={(e) => {
@@ -291,6 +284,8 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
                               <strong>A/C:</strong> {ch.bank_ac}
                               <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
                             </div>
+                          )}
+                          {ch.bank_ifsc && (
                             <div
                               style={{ cursor: "pointer" }}
                               onClick={(e) => {
@@ -301,16 +296,17 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
                               <strong>IFSC:</strong> {ch.bank_ifsc}
                               <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
                             </div>
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {selectedChannel?.id === ch.id && (
-                      <CheckCircle style={{ width: "24px", height: "24px", color: "#ea580c" }} />
-                    )}
                   </div>
+                  {selectedChannel?.id === ch.id && (
+                    <CheckCircle style={{ width: "24px", height: "24px", color: "#ea580c" }} />
+                  )}
                 </div>
-              ))}
+              </div>
+            ))}
           </div>
         )}
       </div>

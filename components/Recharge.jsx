@@ -11,7 +11,6 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("usdt"); // 控制显示的充值通道
-
   const quickAmounts = [10, 50, 100, 500];
 
   // 读取可用通道
@@ -24,7 +23,6 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           .select("id, currency_name, wallet_address, upi_id, bank_name, bank_ac, bank_ifsc") // 获取新增的字段
           .eq("status", "active")
           .order("id");
-
         if (error) throw error;
         setChannels(data ?? []);
       } catch (err) {
@@ -51,26 +49,21 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
       setTab("login");
       return;
     }
-
     if (!selectedChannel) {
       setError("Please select a network.");
       return;
     }
-
     const num = parseFloat(amount);
     if (!amount || isNaN(num) || num < 1) {
       setError("Minimum recharge is 1 USDT.");
       return;
     }
-
     if (!txId || txId.trim() === "") {
       setError("Please enter the transaction hash (tx_id).");
       return;
     }
-
     setLoading(true);
     setError("");
-
     try {
       const { error } = await supabase.from("recharges").insert({
         user_id: userId,
@@ -79,9 +72,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         status: "pending",
         tx_id: txId.trim(), // 写入 tx_id
       });
-
       if (error) throw error;
-
       alert("Recharge request submitted successfully! Awaiting confirmation.");
       setAmount("");
       setTxId("");
@@ -194,7 +185,6 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         <h3 style={{ fontSize: "14px", fontWeight: "600", color: "#374151" }}>
           <span style={{ color: "#ea580c" }}>Select Network</span>
         </h3>
-
         {fetching ? (
           <div style={{ textAlign: "center", padding: "24px 0", color: "#6b7280" }}>Loading...</div>
         ) : channels.length === 0 ? (
@@ -202,11 +192,12 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
             {channels
-              .filter((ch) =>
-                activeTab === "usdt" ? ch.currency_name.includes("USDT") :
-                activeTab === "upi" ? ch.currency_name.includes("UPI") :
-                activeTab === "bank" ? ch.currency_name.includes("BANK") : false
-              )
+              .filter((ch) => {
+                if (activeTab === "usdt") return ch.currency_name.includes("USDT");
+                if (activeTab === "upi") return ch.upi_id && ch.currency_name.includes("UPI");
+                if (activeTab === "bank") return ch.bank_name && ch.currency_name.includes("BANK");
+                return false;
+              })
               .map((ch) => (
                 <div
                   key={ch.id}
@@ -239,28 +230,79 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
                           fontSize: "18px",
                         }}
                       >
-                        {ch.currency_name.includes("TRC20") ? "T" : "E"}
+                        {activeTab === "usdt" ? "T" : activeTab === "upi" ? "U" : "B"}
                       </div>
                       <div>
-                        <div style={{ fontWeight: "bold", color: "#1f2937" }}>{ch.currency_name}</div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#6b7280",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            maxWidth: "160px",
-                            cursor: "pointer",
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            copyToClipboard(ch.wallet_address);
-                          }}
-                        >
-                          {ch.wallet_address}
-                          <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
+                        <div style={{ fontWeight: "bold", color: "#1f2937" }}>
+                          {ch.currency_name}
                         </div>
+
+                        {/* USDT: 显示钱包地址 */}
+                        {activeTab === "usdt" && ch.wallet_address && (
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#6b7280",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxWidth: "160px",
+                              cursor: "pointer",
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(ch.wallet_address);
+                            }}
+                          >
+                            {ch.wallet_address}
+                            <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
+                          </div>
+                        )}
+
+                        {/* UPI: 显示 UPI ID */}
+                        {activeTab === "upi" && ch.upi_id && (
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#6b7280",
+                              cursor: "pointer",
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(ch.upi_id);
+                            }}
+                          >
+                            {ch.upi_id}
+                            <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
+                          </div>
+                        )}
+
+                        {/* Bank: 显示银行信息 */}
+                        {activeTab === "bank" && ch.bank_name && (
+                          <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                            <div><strong>Bank:</strong> {ch.bank_name}</div>
+                            <div
+                              style={{ cursor: "pointer" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(ch.bank_ac);
+                              }}
+                            >
+                              <strong>A/C:</strong> {ch.bank_ac}
+                              <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
+                            </div>
+                            <div
+                              style={{ cursor: "pointer" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(ch.bank_ifsc);
+                              }}
+                            >
+                              <strong>IFSC:</strong> {ch.bank_ifsc}
+                              <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     {selectedChannel?.id === ch.id && (

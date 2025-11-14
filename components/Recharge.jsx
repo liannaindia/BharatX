@@ -1,4 +1,3 @@
-// components/Recharge.jsx
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import { ArrowLeft, Shield, Zap, CheckCircle, Copy, AlertCircle } from "lucide-react";
@@ -6,13 +5,14 @@ import { ArrowLeft, Shield, Zap, CheckCircle, Copy, AlertCircle } from "lucide-r
 export default function Recharge({ setTab, isLoggedIn, userId }) {
   const [amount, setAmount] = useState("");
   const [txId, setTxId] = useState(""); // 交易哈希
+  const [utr, setUtr] = useState(""); // UTR（银行转账参考号）
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState("");
 
-  // ✅ 新增：当前选择的充值方式（USDT / UPI / BANK）
+  // 当前选择的充值方式（USDT / UPI / BANK）
   const [activeMethod, setActiveMethod] = useState("USDT");
 
   const quickAmounts = [10, 50, 100, 500];
@@ -40,7 +40,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
     fetchChannels();
   }, []);
 
-  // ✅ 切换方式时，清空已选通道
+  // 切换方式时，清空已选通道
   useEffect(() => {
     setSelectedChannel(null);
   }, [activeMethod]);
@@ -53,13 +53,12 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
     });
   };
 
-  // ✅ 按方式过滤通道
+  // 按方式过滤通道
   const filteredChannels = channels.filter((ch) => {
     if (!ch.currency_name) return false;
     const name = ch.currency_name.toUpperCase();
 
     if (activeMethod === "USDT") {
-      // 包含 USDT / TRC20 / ERC20 等
       return name.includes("USDT");
     }
     if (activeMethod === "UPI") {
@@ -82,7 +81,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
 
     // 通道校验
     if (!selectedChannel) {
-      setError("Please select a network.");
+      setError("Please select a payment method.");
       return;
     }
 
@@ -93,9 +92,15 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
       return;
     }
 
-    // tx_id 非空校验（不校验格式）
+    // tx_id 非空校验
     if (!txId || txId.trim() === "") {
       setError("Please enter the transaction hash (tx_id).");
+      return;
+    }
+
+    // UTR 非空校验（如果是银行转账）
+    if (activeMethod === "BANK" && (!utr || utr.trim() === "")) {
+      setError("Please enter the UTR (Unique Transaction Reference).");
       return;
     }
 
@@ -109,6 +114,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         amount: num,
         status: "pending",
         tx_id: txId.trim(), // 写入 tx_id
+        utr: activeMethod === "BANK" ? utr.trim() : null, // 仅银行转账时插入 UTR
       });
 
       if (error) throw error;
@@ -117,6 +123,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
       // 重置表单
       setAmount("");
       setTxId("");
+      setUtr(""); // 重置 UTR
       setSelectedChannel(null);
     } catch (err) {
       console.error("Recharge submit error:", err);
@@ -197,7 +204,6 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           <span style={{ color: "#ea580c" }}>Select Payment Method</span>
         </h3>
 
-        {/* ✅ 新增：方式切换按钮 */}
         <div
           style={{
             display: "flex",
@@ -500,6 +506,52 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         </div>
       </div>
 
+      {/* UTR (Only for Bank Transfer) */}
+      {activeMethod === "BANK" && (
+        <div
+          style={{
+            marginTop: "20px",
+            background: "white",
+            borderRadius: "16px",
+            padding: "16px",
+            boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              fontSize: "14px",
+              color: "#4b5563",
+              marginBottom: "8px",
+            }}
+          >
+            <AlertCircle style={{ width: "16px", height: "16px", color: "#ea580c" }} />
+            UTR (Unique Transaction Reference)
+          </div>
+          <input
+            type="text"
+            value={utr}
+            onChange={(e) => setUtr(e.target.value)}
+            placeholder="Enter UTR (Unique Transaction Reference)"
+            style={{
+              width: "100%",
+              padding: "12px",
+              border: "2px solid #fdba74",
+              borderRadius: "12px",
+              fontSize: "14px",
+              color: "#1f2937",
+              outline: "none",
+            }}
+          />
+          <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+            After bank transfer, please enter the UTR provided by your bank.
+          </div>
+        </div>
+      )}
+
       {/* Error Message */}
       {error && (
         <div
@@ -537,7 +589,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
       {/* Submit Button */}
       <button
         onClick={handleSubmit}
-        disabled={loading || !selectedChannel || !amount || !txId.trim() || fetching}
+        disabled={loading || !selectedChannel || !amount || !txId.trim() || (activeMethod === "BANK" && !utr.trim()) || fetching}
         style={{
           marginTop: "24px",
           width: "100%",
@@ -548,21 +600,21 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           boxShadow: "0 10px 20px rgba(0,0,0,0.1)",
           transition: "all 0.3s",
           cursor:
-            loading || !selectedChannel || !amount || !txId.trim() || fetching
+            loading || !selectedChannel || !amount || !txId.trim() || (activeMethod === "BANK" && !utr.trim()) || fetching
               ? "not-allowed"
               : "pointer",
           background:
-            loading || !selectedChannel || !amount || !txId.trim() || fetching
+            loading || !selectedChannel || !amount || !txId.trim() || (activeMethod === "BANK" && !utr.trim()) || fetching
               ? "#d1d5db"
               : "linear-gradient(to right, #f97316, #ec4899)",
           color:
-            loading || !selectedChannel || !amount || !txId.trim() || fetching
+            loading || !selectedChannel || !amount || !txId.trim() || (activeMethod === "BANK" && !utr.trim()) || fetching
               ? "#6b7280"
               : "white",
-          opacity: loading || !selectedChannel || !amount || !txId.trim() || fetching ? 0.7 : 1,
+          opacity: loading || !selectedChannel || !amount || !txId.trim() || (activeMethod === "BANK" && !utr.trim()) || fetching ? 0.7 : 1,
         }}
         onMouseEnter={(e) => {
-          if (!(loading || !selectedChannel || !amount || !txId.trim() || fetching)) {
+          if (!(loading || !selectedChannel || !amount || !txId.trim() || (activeMethod === "BANK" && !utr.trim()) || fetching)) {
             e.target.style.transform = "scale(1.02)";
           }
         }}

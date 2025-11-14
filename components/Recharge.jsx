@@ -12,6 +12,9 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState("");
 
+  // ✅ 新增：当前选择的充值方式（USDT / UPI / BANK）
+  const [activeMethod, setActiveMethod] = useState("USDT");
+
   const quickAmounts = [10, 50, 100, 500];
 
   // 读取可用通道
@@ -21,7 +24,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
       try {
         const { data, error } = await supabase
           .from("channels")
-          .select("id, currency_name, wallet_address")
+          .select("id, currency_name, wallet_address, upi_id, bank_name, bank_ac, bank_ifsc")
           .eq("status", "active")
           .order("id");
 
@@ -37,12 +40,36 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
     fetchChannels();
   }, []);
 
+  // ✅ 切换方式时，清空已选通道
+  useEffect(() => {
+    setSelectedChannel(null);
+  }, [activeMethod]);
+
   // 复制到剪贴板
   const copyToClipboard = (text) => {
+    if (!text) return;
     navigator.clipboard.writeText(text).then(() => {
       alert("Copied to clipboard!");
     });
   };
+
+  // ✅ 按方式过滤通道
+  const filteredChannels = channels.filter((ch) => {
+    if (!ch.currency_name) return false;
+    const name = ch.currency_name.toUpperCase();
+
+    if (activeMethod === "USDT") {
+      // 包含 USDT / TRC20 / ERC20 等
+      return name.includes("USDT");
+    }
+    if (activeMethod === "UPI") {
+      return name.includes("UPI");
+    }
+    if (activeMethod === "BANK") {
+      return name.includes("BANK") || name.includes("ACCOUNT");
+    }
+    return true;
+  });
 
   // 提交充值请求
   const handleSubmit = async () => {
@@ -167,16 +194,55 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
       {/* Channels */}
       <div style={{ marginTop: "12px" }}>
         <h3 style={{ fontSize: "14px", fontWeight: "600", color: "#374151" }}>
-          <span style={{ color: "#ea580c" }}>Select Network</span>
+          <span style={{ color: "#ea580c" }}>Select Payment Method</span>
         </h3>
+
+        {/* ✅ 新增：方式切换按钮 */}
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            marginTop: "8px",
+            marginBottom: "8px",
+          }}
+        >
+          {["USDT", "UPI", "BANK"].map((method) => {
+            const isActive = activeMethod === method;
+            return (
+              <button
+                key={method}
+                onClick={() => setActiveMethod(method)}
+                style={{
+                  flex: 1,
+                  padding: "8px 0",
+                  borderRadius: "999px",
+                  border: isActive ? "2px solid #f97316" : "1px solid #e5e7eb",
+                  background: isActive ? "linear-gradient(to right, #f97316, #ec4899)" : "#ffffff",
+                  color: isActive ? "#ffffff" : "#374151",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  boxShadow: isActive ? "0 8px 16px rgba(0,0,0,0.12)" : "none",
+                  transition: "all 0.2s",
+                }}
+              >
+                {method === "USDT" && "USDT"}
+                {method === "UPI" && "UPI"}
+                {method === "BANK" && "Bank Account"}
+              </button>
+            );
+          })}
+        </div>
 
         {fetching ? (
           <div style={{ textAlign: "center", padding: "24px 0", color: "#6b7280" }}>Loading...</div>
-        ) : channels.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "24px 0", color: "#6b7280" }}>No active channels</div>
+        ) : filteredChannels.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "24px 0", color: "#6b7280" }}>
+            No active channels for {activeMethod}
+          </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
-            {channels.map((ch) => (
+            {filteredChannels.map((ch) => (
               <div
                 key={ch.id}
                 onClick={() => setSelectedChannel(ch)}
@@ -208,28 +274,98 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
                         fontSize: "18px",
                       }}
                     >
-                      {ch.currency_name.includes("TRC20") ? "T" : "E"}
+                      {ch.currency_name && ch.currency_name.includes("TRC20")
+                        ? "T"
+                        : ch.currency_name && ch.currency_name.includes("ERC20")
+                        ? "E"
+                        : ch.currency_name && ch.currency_name.toUpperCase().includes("UPI")
+                        ? "U"
+                        : ch.currency_name && ch.currency_name.toUpperCase().includes("BANK")
+                        ? "B"
+                        : "P"}
                     </div>
                     <div>
                       <div style={{ fontWeight: "bold", color: "#1f2937" }}>{ch.currency_name}</div>
-                      <div
-                        style={{
-                          fontSize: "12px",
-                          color: "#6b7280",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          maxWidth: "160px",
-                          cursor: "pointer",
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          copyToClipboard(ch.wallet_address);
-                        }}
-                      >
-                        {ch.wallet_address}
-                        <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
-                      </div>
+
+                      {/* 原有钱包地址（仅在有值时显示） */}
+                      {ch.wallet_address && (
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#6b7280",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            maxWidth: "160px",
+                            cursor: "pointer",
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyToClipboard(ch.wallet_address);
+                          }}
+                        >
+                          {ch.wallet_address}
+                          <Copy
+                            style={{
+                              width: "14px",
+                              height: "14px",
+                              marginLeft: "4px",
+                              display: "inline",
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* ✅ UPI 通道显示 */}
+                      {ch.currency_name &&
+                        ch.currency_name.toUpperCase().includes("UPI") && (
+                          <div style={{ marginTop: "8px", fontSize: "13px", color: "#6b7280" }}>
+                            <div>
+                              <strong style={{ color: "#1f2937" }}>UPI ID:</strong>{" "}
+                              {ch.upi_id || "N/A"}
+                            </div>
+                            <div
+                              style={{ cursor: "pointer", color: "#f97316", marginTop: "4px" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(ch.upi_id);
+                              }}
+                            >
+                              Copy UPI ID
+                            </div>
+                          </div>
+                        )}
+
+                      {/* ✅ 银行卡通道显示 */}
+                      {ch.currency_name &&
+                        (ch.currency_name.toUpperCase().includes("BANK") ||
+                          ch.currency_name.toUpperCase().includes("ACCOUNT")) && (
+                          <div style={{ marginTop: "8px", fontSize: "13px", color: "#6b7280" }}>
+                            <div>
+                              <strong style={{ color: "#1f2937" }}>Account Name:</strong>{" "}
+                              {ch.bank_name || "N/A"}
+                            </div>
+                            <div>
+                              <strong style={{ color: "#1f2937" }}>AC Number:</strong>{" "}
+                              {ch.bank_ac || "N/A"}
+                            </div>
+                            <div>
+                              <strong style={{ color: "#1f2937" }}>IFSC:</strong>{" "}
+                              {ch.bank_ifsc || "N/A"}
+                            </div>
+                            <div
+                              style={{ cursor: "pointer", color: "#f97316", marginTop: "4px" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(
+                                  `NAME: ${ch.bank_name}\nAC: ${ch.bank_ac}\nIFSC: ${ch.bank_ifsc}`
+                                );
+                              }}
+                            >
+                              Copy Bank Info
+                            </div>
+                          </div>
+                        )}
                     </div>
                   </div>
                   {selectedChannel?.id === ch.id && (
@@ -331,7 +467,16 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           border: "1px solid #e5e7eb",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "14px", color: "#4b5563", marginBottom: "8px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            fontSize: "14px",
+            color: "#4b5563",
+            marginBottom: "8px",
+          }}
+        >
           <AlertCircle style={{ width: "16px", height: "16px", color: "#ea580c" }} />
           Transaction Hash (tx_id)
         </div>
@@ -361,7 +506,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           style={{
             marginTop: "12px",
             backgroundColor: "#fee2e2",
-            border: "1px solid #fca5a5",
+            border: "1px solid "#fca5a5",
             color: "#dc2626",
             padding: "12px",
             borderRadius: "12px",
@@ -385,7 +530,8 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
       >
         <strong style={{ color: "#166534" }}>Important:</strong>
         <br />
-        After payment, funds arrive in <strong>30 seconds</strong>. If delayed, refresh or contact support.
+        After payment, funds arrive in <strong>30 seconds</strong>. If delayed, refresh or contact
+        support.
       </div>
 
       {/* Submit Button */}
@@ -401,12 +547,18 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           fontSize: "18px",
           boxShadow: "0 10px 20px rgba(0,0,0,0.1)",
           transition: "all 0.3s",
-          cursor: loading || !selectedChannel || !amount || !txId.trim() || fetching ? "not-allowed" : "pointer",
+          cursor:
+            loading || !selectedChannel || !amount || !txId.trim() || fetching
+              ? "not-allowed"
+              : "pointer",
           background:
             loading || !selectedChannel || !amount || !txId.trim() || fetching
               ? "#d1d5db"
               : "linear-gradient(to right, #f97316, #ec4899)",
-          color: loading || !selectedChannel || !amount || !txId.trim() || fetching ? "#6b7280" : "white",
+          color:
+            loading || !selectedChannel || !amount || !txId.trim() || fetching
+              ? "#6b7280"
+              : "white",
           opacity: loading || !selectedChannel || !amount || !txId.trim() || fetching ? 0.7 : 1,
         }}
         onMouseEnter={(e) => {

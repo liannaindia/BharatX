@@ -26,7 +26,7 @@ export default function RechargeChannel() {
       if (error) throw error;
       setChannels(data || []);
     } catch (error) {
-      console.error("获取虚拟币通道失败:", error);
+      console.error("获取充值通道失败:", error);
     } finally {
       setLoading(false);
     }
@@ -104,7 +104,7 @@ export default function RechargeChannel() {
   return (
     <div className="admin-card">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-gray-800">虚拟币充值通道管理</h2>
+        <h2 className="text-xl font-bold text-gray-800">充值通道管理</h2>
         <div className="flex gap-3">
           <button
             onClick={() => setShowAddForm(!showAddForm)}

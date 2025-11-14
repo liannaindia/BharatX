@@ -194,9 +194,9 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
             {channels
               .filter((ch) => {
-                if (activeTab === "usdt") return ch.wallet_address;
-                if (activeTab === "upi") return ch.upi_id;
-                if (activeTab === "bank") return ch.bank_name;
+                if (activeTab === "usdt" && ch.wallet_address) return true;
+                if (activeTab === "upi" && ch.upi_id) return true;
+                if (activeTab === "bank" && ch.bank_name) return true;
                 return false;
               })
               .map((ch) => (
@@ -341,6 +341,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
               }}
               onMouseEnter={(e) => (e.target.style.transform = "scale(1.05)")}
               onMouseLeave={(e) => (e.target.style.transform = "scale(1)")}
+
             >
               {amt} USDT
             </button>

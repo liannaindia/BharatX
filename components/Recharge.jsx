@@ -21,7 +21,16 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
       try {
         const { data, error } = await supabase
           .from("channels")
-          .select("id, currency_name, wallet_address")
+          .select(`
+            id,
+            currency_name,
+            wallet_address,
+            upi_id,
+            bank_name,
+            bank_ac,
+            bank_ifsc,
+            status
+          `)
           .eq("status", "active")
           .order("id");
 
@@ -202,11 +211,20 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
             {channels
-              .filter((ch) =>
-                activeTab === "usdt" ? ch.currency_name.includes("USDT") :
-                activeTab === "upi" ? ch.currency_name.includes("UPI") :
-                activeTab === "bank" ? ch.currency_name.includes("BANK") : false
-              )
+              .filter((ch) => {
+                const hasUpi = ch.upi_id && ch.upi_id.trim() !== "";
+                const hasBank = ch.bank_name && ch.bank_ac && ch.bank_ifsc && 
+                               ch.bank_name.trim() !== "" && ch.bank_ac.trim() !== "" && ch.bank_ifsc.trim() !== "";
+                const isCrypto = ch.wallet_address && 
+                                (ch.wallet_address.includes("0x") || 
+                                 ch.wallet_address.includes("T") || 
+                                 ch.wallet_address.match(/^[A-Za-z0-9]{20,}$/));
+
+                if (activeTab === "usdt") return isCrypto;
+                if (activeTab === "upi") return hasUpi;
+                if (activeTab === "bank") return hasBank;
+                return false;
+              })
               .map((ch) => (
                 <div
                   key={ch.id}
@@ -239,28 +257,83 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
                           fontSize: "18px",
                         }}
                       >
-                        {ch.currency_name.includes("TRC20") ? "T" : "E"}
+                        {ch.upi_id ? "U" : ch.bank_name ? "B" : ch.currency_name.includes("TRC20") ? "T" : "E"}
                       </div>
-                      <div>
-                        <div style={{ fontWeight: "bold", color: "#1f2937" }}>{ch.currency_name}</div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#6b7280",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            maxWidth: "160px",
-                            cursor: "pointer",
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            copyToClipboard(ch.wallet_address);
-                          }}
-                        >
-                          {ch.wallet_address}
-                          <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: "bold", color: "#1f2937" }}>
+                          {ch.currency_name}
                         </div>
+
+                        {/* UPI 显示 */}
+                        {ch.upi_id && (
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#6b7280",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxWidth: "160px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(ch.upi_id);
+                            }}
+                          >
+                            UPI: {ch.upi_id}
+                            <Copy style={{ width: "14px", height: "14px", flexShrink: 0 }} />
+                          </div>
+                        )}
+
+                        {/* 银行显示 + 复制按钮 */}
+                        {ch.bank_name && !ch.upi_id && (
+                          <div style={{ fontSize: "11px", color: "#6b7280", lineHeight: "1.5" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span>Bank: {ch.bank_name}</span>
+                              {selectedChannel?.id === ch.id && (
+                                <Copy
+                                  style={{ width: "14px", height: "14px", cursor: "pointer", color: "#ea580c" }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const text = `Bank: ${ch.bank_name}\nA/C: ${ch.bank_ac}\nIFSC: ${ch.bank_ifsc}`;
+                                    copyToClipboard(text);
+                                  }}
+                                />
+                              )}
+                            </div>
+                            <div>A/C: {ch.bank_ac}</div>
+                            <div>IFSC: {ch.bank_ifsc}</div>
+                          </div>
+                        )}
+
+                        {/* 加密货币地址显示 */}
+                        {ch.wallet_address && !ch.upi_id && !ch.bank_name && (
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#6b7280",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxWidth: "160px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(ch.wallet_address);
+                            }}
+                          >
+                            {ch.wallet_address}
+                            <Copy style={{ width: "14px", height: "14px", flexShrink: 0 }} />
+                          </div>
+                        )}
                       </div>
                     </div>
                     {selectedChannel?.id === ch.id && (

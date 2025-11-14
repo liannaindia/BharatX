@@ -10,7 +10,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("usdt"); // 控制显示的充值通道
+
   const quickAmounts = [10, 50, 100, 500];
 
   // 读取可用通道
@@ -23,6 +23,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           .select("id, currency_name, wallet_address, upi_id, bank_name, bank_ac, bank_ifsc")
           .eq("status", "active")
           .order("id");
+
         if (error) throw error;
         setChannels(data ?? []);
       } catch (err) {
@@ -37,7 +38,6 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
 
   // 复制到剪贴板
   const copyToClipboard = (text) => {
-    if (!text) return;
     navigator.clipboard.writeText(text).then(() => {
       alert("Copied to clipboard!");
     });
@@ -50,30 +50,37 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
       setTab("login");
       return;
     }
+
     if (!selectedChannel) {
       setError("Please select a network.");
       return;
     }
+
     const num = parseFloat(amount);
     if (!amount || isNaN(num) || num < 1) {
       setError("Minimum recharge is 1 USDT.");
       return;
     }
+
     if (!txId || txId.trim() === "") {
       setError("Please enter the transaction hash (tx_id).");
       return;
     }
+
     setLoading(true);
     setError("");
+
     try {
       const { error } = await supabase.from("recharges").insert({
         user_id: userId,
         channel_id: selectedChannel.id,
         amount: num,
         status: "pending",
-        tx_id: txId.trim(),
+        tx_id: txId.trim(), // 写入 tx_id
       });
+
       if (error) throw error;
+
       alert("Recharge request submitted successfully! Awaiting confirmation.");
       setAmount("");
       setTxId("");
@@ -181,11 +188,12 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         </button>
       </div>
 
-      {/* Channels - 按字段过滤，仅显示选中的通道 */}
+      {/* Channels */}
       <div style={{ marginTop: "12px" }}>
         <h3 style={{ fontSize: "14px", fontWeight: "600", color: "#374151" }}>
           <span style={{ color: "#ea580c" }}>Select Network</span>
         </h3>
+
         {fetching ? (
           <div style={{ textAlign: "center", padding: "24px 0", color: "#6b7280" }}>Loading...</div>
         ) : channels.length === 0 ? (
@@ -193,12 +201,11 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
             {channels
-              .filter((ch) => {
-                if (activeTab === "usdt" && ch.wallet_address) return true;
-                if (activeTab === "upi" && ch.upi_id) return true;
-                if (activeTab === "bank" && ch.bank_name) return true;
-                return false;
-              })
+              .filter((ch) =>
+                activeTab === "usdt" ? ch.currency_name.includes("USDT") :
+                activeTab === "upi" ? ch.currency_name.includes("UPI") :
+                activeTab === "bank" ? ch.currency_name.includes("BANK") : false
+              )
               .map((ch) => (
                 <div
                   key={ch.id}
@@ -231,83 +238,28 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
                           fontSize: "18px",
                         }}
                       >
-                        {ch.wallet_address ? "T" : ch.upi_id ? "U" : "B"}
+                        {ch.currency_name.includes("TRC20") ? "T" : "E"}
                       </div>
                       <div>
-                        <div style={{ fontWeight: "bold", color: "#1f2937" }}>
-                          {ch.currency_name || "Payment Channel"}
+                        <div style={{ fontWeight: "bold", color: "#1f2937" }}>{ch.currency_name}</div>
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#6b7280",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            maxWidth: "160px",
+                            cursor: "pointer",
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyToClipboard(ch.wallet_address);
+                          }}
+                        >
+                          {ch.wallet_address}
+                          <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
                         </div>
-
-                        {/* USDT */}
-                        {ch.wallet_address && (
-                          <div
-                            style={{
-                              fontSize: "12px",
-                              color: "#6b7280",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              maxWidth: "160px",
-                              cursor: "pointer",
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(ch.wallet_address);
-                            }}
-                          >
-                            {ch.wallet_address}
-                            <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
-                          </div>
-                        )}
-
-                        {/* UPI */}
-                        {ch.upi_id && (
-                          <div
-                            style={{
-                              fontSize: "12px",
-                              color: "#6b7280",
-                              cursor: "pointer",
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(ch.upi_id);
-                            }}
-                          >
-                            {ch.upi_id}
-                            <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
-                          </div>
-                        )}
-
-                        {/* Bank */}
-                        {ch.bank_name && (
-                          <div style={{ fontSize: "12px", color: "#6b7280" }}>
-                            <div><strong>Bank:</strong> {ch.bank_name}</div>
-                            {ch.bank_ac && (
-                              <div
-                                style={{ cursor: "pointer" }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  copyToClipboard(ch.bank_ac);
-                                }}
-                              >
-                                <strong>A/C:</strong> {ch.bank_ac}
-                                <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
-                              </div>
-                            )}
-                            {ch.bank_ifsc && (
-                              <div
-                                style={{ cursor: "pointer" }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  copyToClipboard(ch.bank_ifsc);
-                                }}
-                              >
-                                <strong>IFSC:</strong> {ch.bank_ifsc}
-                                <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </div>
                     {selectedChannel?.id === ch.id && (
@@ -450,22 +402,6 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         </div>
       )}
 
-      {/* Reminder */}
-      <div
-        style={{
-          marginTop: "16px",
-          background: "linear-gradient(to right, #f0fdf4, #ecfdf5)",
-          border: "1px solid #86efac",
-          borderRadius: "16px",
-          padding: "16px",
-          fontSize: "12px",
-        }}
-      >
-        <strong style={{ color: "#166534" }}>Important:</strong>
-        <br />
-        After payment, funds arrive in <strong>30 seconds</strong>. If delayed, refresh or contact support.
-      </div>
-
       {/* Submit Button */}
       <button
         onClick={handleSubmit}
@@ -487,6 +423,12 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           color: loading || !selectedChannel || !amount || !txId.trim() || fetching ? "#6b7280" : "white",
           opacity: loading || !selectedChannel || !amount || !txId.trim() || fetching ? 0.7 : 1,
         }}
+        onMouseEnter={(e) => {
+          if (!(loading || !selectedChannel || !amount || !txId.trim() || fetching)) {
+            e.target.style.transform = "scale(1.02)";
+          }
+        }}
+        onMouseLeave={(e) => (e.target.style.transform = "scale(1)")}
       >
         {loading ? "Submitting..." : "Submit Recharge"}
       </button>

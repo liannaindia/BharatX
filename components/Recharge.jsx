@@ -181,7 +181,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
         </button>
       </div>
 
-      {/* Channels - 按字段过滤，不依赖 currency_name */}
+      {/* Channels - 按字段过滤，仅显示选中的通道 */}
       <div style={{ marginTop: "12px" }}>
         <h3 style={{ fontSize: "14px", fontWeight: "600", color: "#374151" }}>
           <span style={{ color: "#ea580c" }}>Select Network</span>
@@ -341,7 +341,6 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
               }}
               onMouseEnter={(e) => (e.target.style.transform = "scale(1.05)")}
               onMouseLeave={(e) => (e.target.style.transform = "scale(1)")}
-
             >
               {amt} USDT
             </button>
@@ -488,12 +487,6 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           color: loading || !selectedChannel || !amount || !txId.trim() || fetching ? "#6b7280" : "white",
           opacity: loading || !selectedChannel || !amount || !txId.trim() || fetching ? 0.7 : 1,
         }}
-        onMouseEnter={(e) => {
-          if (!(loading || !selectedChannel || !amount || !txId.trim() || fetching)) {
-            e.target.style.transform = "scale(1.02)";
-          }
-        }}
-        onMouseLeave={(e) => (e.target.style.transform = "scale(1)")}
       >
         {loading ? "Submitting..." : "Submit Recharge"}
       </button>

@@ -506,7 +506,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
           style={{
             marginTop: "12px",
             backgroundColor: "#fee2e2",
-            border: "1px solid "#fca5a5",
+            border: '1px solid #fca5a5',
             color: "#dc2626",
             padding: "12px",
             borderRadius: "12px",

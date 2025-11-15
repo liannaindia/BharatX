@@ -1,261 +1,423 @@
-import { useState, useEffect, useCallback } from "react";
+// components/Recharge.jsx
+import React, { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
+import { ArrowLeft, Shield, Zap, CheckCircle, Copy, AlertCircle } from "lucide-react";
 
-export default function RechargeManagement() {
-  const [recharges, setRecharges] = useState({ data: [], total: 0 });
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+export default function Recharge({ setTab, isLoggedIn, userId }) {
+  const [amount, setAmount] = useState("");
+  const [txId, setTxId] = useState(""); // 交易哈希
+  const [selectedChannel, setSelectedChannel] = useState(null);
+  const [channels, setChannels] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+  const [error, setError] = useState("");
 
-  /* ------------------- 1. 把 fetchRecharges 包装成 useCallback ------------------- */
-  const fetchRecharges = useCallback(async () => {
-    try {
-      setLoading(true);
-      const from = (currentPage - 1) * pageSize;
-      const to = from + pageSize - 1;
+  const quickAmounts = [10, 50, 100, 500];
 
-      /* 2. 删除重复的 created_at（只保留在 order 中） */
-      const { data, error, count } = await supabase
-        .from("recharges")
-        .select(
-          `
-          id, user_id, amount, channel_id, status, created_at, tx_id,
-          users (phone_number),
-          channels (currency_name)
-        `,
-          { count: "exact" }
-        )
-        .range(from, to)
-        .order("created_at", { ascending: false }); // ← 只在这里排序
-
-      if (error) throw error;
-
-      const formatted = data.map((r) => ({
-        ...r,
-        phone_number: r.users?.phone_number || "未知",
-        currency_name: r.channels?.currency_name || "未知通道",
-        created_at: formatChinaTime(r.created_at),
-        tx_id: r.tx_id || "无",
-      }));
-
-      setRecharges({ data: formatted, total: count || 0 });
-    } catch (err) {
-      console.error("获取充值记录失败:", err);
-      /* 3. 统一处理 Supabase 错误对象 */
-      const msg = err?.message || "未知错误，请检查网络或联系管理员";
-      alert(`加载失败：${msg}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage]); // ← 依赖 currentPage
-
-  /* ------------------- 4. useEffect 正确声明依赖 ------------------- */
+  // 读取可用通道
   useEffect(() => {
-    fetchRecharges();
-  }, [fetchRecharges]);
+    const fetchChannels = async () => {
+      setFetching(true);
+      try {
+        const { data, error } = await supabase
+          .from("channels")
+          .select("id, currency_name, wallet_address")
+          .eq("status", "active")
+          .order("id");
 
-  const formatChinaTime = (utcTime) => {
-    const date = new Date(utcTime);
-    return new Intl.DateTimeFormat("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-      timeZone: "Asia/Shanghai",
-    }).format(date);
-  };
+        if (error) throw error;
+        setChannels(data ?? []);
+      } catch (err) {
+        console.error("Load channels error:", err);
+        setError("Failed to load payment channels.");
+      } finally {
+        setFetching(false);
+      }
+    };
+    fetchChannels();
+  }, []);
 
-  /* ------------------- 复制 tx_id（保持原有） ------------------- */
-  const copyTxId = (txId) => {
-    navigator.clipboard.writeText(txId).then(() => {
-      alert("交易哈希已复制！");
+  // 复制到剪贴板
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Copied to clipboard!");
     });
   };
 
-  const handleApprove = async (id, user_id, amount) => {
-    try {
-      const parsedAmount = parseFloat(amount);
-      if (isNaN(parsedAmount) || parsedAmount <= 0) throw new Error("金额无效");
-
-      const { error: statusError } = await supabase
-        .from("recharges")
-        .update({ status: "approved" })
-        .eq("id", id);
-      if (statusError) throw statusError;
-
-      const { error: balanceError } = await supabase
-        .rpc("increment_balance", { user_id, amount: parsedAmount });
-      if (balanceError) throw balanceError;
-
-      alert("充值已批准！");
-      fetchRecharges();
-    } catch (error) {
-      alert("操作失败: " + (error?.message || "未知错误"));
+  // 提交充值请求
+  const handleSubmit = async () => {
+    // 登录校验
+    if (!isLoggedIn || !userId) {
+      alert("Please log in first.");
+      setTab("login");
+      return;
     }
-  };
 
-  const handleReject = async (id) => {
+    // 通道校验
+    if (!selectedChannel) {
+      setError("Please select a network.");
+      return;
+    }
+
+    // 金额校验
+    const num = parseFloat(amount);
+    if (!amount || isNaN(num) || num < 1) {
+      setError("Minimum recharge is 1 USDT.");
+      return;
+    }
+
+    // tx_id 非空校验（不校验格式）
+    if (!txId || txId.trim() === "") {
+      setError("Please enter the transaction hash (tx_id).");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
     try {
-      const { error } = await supabase
-        .from("recharges")
-        .update({ status: "rejected" })
-        .eq("id", id);
+      const { error } = await supabase.from("recharges").insert({
+        user_id: userId,
+        channel_id: selectedChannel.id,
+        amount: num,
+        status: "pending",
+        tx_id: txId.trim(), // 写入 tx_id
+      });
+
       if (error) throw error;
-      alert("充值已拒绝！");
-      fetchRecharges();
-    } catch (error) {
-      alert("操作失败: " + (error?.message || "未知错误"));
+
+      alert("Recharge request submitted successfully! Awaiting confirmation.");
+      // 重置表单
+      setAmount("");
+      setTxId("");
+      setSelectedChannel(null);
+    } catch (err) {
+      console.error("Recharge submit error:", err);
+      setError("Submission failed. Please check and try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const totalPages = Math.ceil(recharges.total / pageSize);
-
-  if (loading) return <div className="p-6 text-center text-gray-500">加载中...</div>;
+  // 未登录提示
+  if (!isLoggedIn) {
+    return (
+      <div style={{ padding: "24px", textAlign: "center" }}>
+        <div
+          style={{
+            backgroundColor: "#fed7aa",
+            color: "#c2410c",
+            padding: "16px",
+            borderRadius: "12px",
+            fontSize: "14px",
+          }}
+        >
+          Please log in to recharge
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="admin-card">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-gray-800">充值管理</h2>
-        <button onClick={fetchRecharges} className="btn-primary text-sm">
-          刷新
-        </button>
+    <div
+      style={{
+        padding: "16px",
+        paddingBottom: "96px",
+        maxWidth: "448px",
+        margin: "0 auto",
+        background: "linear-gradient(to bottom, #fff7ed, #ffffff)",
+        minHeight: "100vh",
+        overflowY: "auto",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          padding: "16px 0",
+          position: "sticky",
+          top: 0,
+          background: "rgba(255, 255, 255, 0.8)",
+          backdropFilter: "blur(10px)",
+          zIndex: 10,
+          borderBottom: "1px solid #e5e7eb",
+        }}
+      >
+        <ArrowLeft
+          style={{ width: "24px", height: "24px", color: "#ea580c", cursor: "pointer" }}
+          onClick={() => setTab("home")}
+        />
+        <h2 style={{ fontSize: "20px", fontWeight: "bold", color: "#7c2d12" }}>
+          Recharge USDT
+        </h2>
       </div>
 
-      <div className="overflow-auto max-h-[80vh]">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th className="admin-table th">手机号</th>
-              <th className="admin-table th">金额</th>
-              <th className="admin-table th">通道</th>
-              <th className="admin-table th">交易哈希</th>
-              <th className="admin-table th">时间</th>
-              <th className="admin-table th">状态</th>
-              <th className="admin-table th">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recharges.data.length === 0 ? (
-              <tr>
-                <td colSpan="7" className="py-8 text-center text-gray-500">
-                  暂无充值记录
-                </td>
-              </tr>
-            ) : (
-              recharges.data.map((r) => (
-                <tr key={r.id} className="hover:bg-gray-50 transition">
-                  <td className="admin-table td font-medium text-blue-600">
-                    {r.phone_number}
-                  </td>
-                  <td className="admin-table td text-green-600 font-semibold">
-                    ${r.amount}
-                  </td>
-                  <td className="admin-table td">{r.currency_name}</td>
+      {/* Trust Badges */}
+      <div style={{ display: "flex", justifyContent: "center", gap: "16px", margin: "16px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#16a34a", fontSize: "12px", fontWeight: "500" }}>
+          <Shield style={{ width: "16px", height: "16px" }} /> 100% Safe
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#16a34a", fontSize: "12px", fontWeight: "500" }}>
+          <Zap style={{ width: "16px", height: "16px" }} /> Instant Arrival
+        </div>
+      </div>
 
-                  {/* tx_id 列 */}
-                  <td className="admin-table td">
-                    <div className="flex items-center gap-1">
-                      <span
-                        className="font-mono text-xs text-gray-600 cursor-pointer hover:text-blue-600 transition"
-                        onClick={() => copyTxId(r.tx_id)}
-                        title="点击复制"
-                      >
-                        {r.tx_id.length > 12
-                          ? `${r.tx_id.slice(0, 6)}...${r.tx_id.slice(-6)}`
-                          : r.tx_id}
-                      </span>
-                      <button
-                        onClick={() => copyTxId(r.tx_id)}
-                        className="text-gray-400 hover:text-blue-600 transition"
-                        title="复制"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
+      {/* Channels */}
+      <div style={{ marginTop: "12px" }}>
+        <h3 style={{ fontSize: "14px", fontWeight: "600", color: "#374151" }}>
+          <span style={{ color: "#ea580c" }}>Select Network</span>
+        </h3>
 
-                  <td className="admin-table td text-gray-500">{r.created_at}</td>
-                  <td className="admin-table td">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        r.status === "pending"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : r.status === "approved"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
+        {fetching ? (
+          <div style={{ textAlign: "center", padding: "24px 0", color: "#6b7280" }}>Loading...</div>
+        ) : channels.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "24px 0", color: "#6b7280" }}>No active channels</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
+            {channels.map((ch) => (
+              <div
+                key={ch.id}
+                onClick={() => setSelectedChannel(ch)}
+                style={{
+                  position: "relative",
+                  background: "white",
+                  borderRadius: "16px",
+                  padding: "16px",
+                  boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+                  border: selectedChannel?.id === ch.id ? "2px solid #f97316" : "2px solid #e5e7eb",
+                  cursor: "pointer",
+                  transition: "all 0.3s",
+                  transform: selectedChannel?.id === ch.id ? "scale(1.02)" : "scale(1)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div
+                      style={{
+                        width: "48px",
+                        height: "48px",
+                        background: "linear-gradient(to bottom right, #f97316, #ec4899)",
+                        borderRadius: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "white",
+                        fontWeight: "bold",
+                        fontSize: "18px",
+                      }}
                     >
-                      {r.status === "pending"
-                        ? "待审批"
-                        : r.status === "approved"
-                        ? "已批准"
-                        : "已拒绝"}
-                    </span>
-                  </td>
-                  <td className="admin-table td space-x-2">
-                    {r.status === "pending" ? (
-                      <>
-                        <button
-                          onClick={() => handleApprove(r.id, r.user_id, r.amount)}
-                          className="btn-primary text-xs"
-                        >
-                          批准
-                        </button>
-                        <button
-                          onClick={() => handleReject(r.id)}
-                          className="btn-danger text-xs"
-                        >
-                          拒绝
-                        </button>
-                      </>
-                    ) : (
-                      <span className="text-gray-500 text-xs">已完成</span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                      {ch.currency_name.includes("TRC20") ? "T" : "E"}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: "bold", color: "#1f2937" }}>{ch.currency_name}</div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#6b7280",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          maxWidth: "160px",
+                          cursor: "pointer",
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copyToClipboard(ch.wallet_address);
+                        }}
+                      >
+                        {ch.wallet_address}
+                        <Copy style={{ width: "14px", height: "14px", marginLeft: "4px", display: "inline" }} />
+                      </div>
+                    </div>
+                  </div>
+                  {selectedChannel?.id === ch.id && (
+                    <CheckCircle style={{ width: "24px", height: "24px", color: "#ea580c" }} />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {recharges.total > pageSize && (
-        <div className="flex justify-center items-center gap-4 p-4 border-t border-gray-200">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="btn-primary text-sm disabled:opacity-50"
+      {/* Quick Amounts */}
+      <div style={{ marginTop: "24px" }}>
+        <h3 style={{ fontSize: "14px", fontWeight: "600", color: "#374151", marginBottom: "8px" }}>
+          Quick Amount
+        </h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+          {quickAmounts.map((amt) => (
+            <button
+              key={amt}
+              onClick={() => setAmount(amt)}
+              style={{
+                background: "linear-gradient(to right, #f97316, #ec4899)",
+                color: "white",
+                fontWeight: "bold",
+                padding: "12px 0",
+                borderRadius: "12px",
+                fontSize: "14px",
+                transition: "transform 0.2s",
+              }}
+              onMouseEnter={(e) => (e.target.style.transform = "scale(1.05)")}
+              onMouseLeave={(e) => (e.target.style.transform = "scale(1)")}
+            >
+              {amt} USDT
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Custom Amount */}
+      <div
+        style={{
+          marginTop: "20px",
+          background: "white",
+          borderRadius: "16px",
+          padding: "16px",
+          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+          border: "1px solid #e5e7eb",
+        }}
+      >
+        <div style={{ fontSize: "14px", color: "#4b5563", marginBottom: "8px" }}>Enter Amount</div>
+        <div style={{ position: "relative" }}>
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "12px 60px 12px 12px",
+              border: "2px solid #fdba74",
+              borderRadius: "12px",
+              fontSize: "18px",
+              fontWeight: "bold",
+              color: "#ea580c",
+              outline: "none",
+            }}
+            placeholder="1.00"
+            min="1"
+            step="0.01"
+          />
+          <div
+            style={{
+              position: "absolute",
+              right: "12px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "#ea580c",
+              fontWeight: "bold",
+              fontSize: "18px",
+            }}
           >
-            上一页
-          </button>
-          <span className="text-sm text-gray-600">
-            第 {currentPage} / {totalPages} 页 (共 {recharges.total} 条)
-          </span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="btn-primary text-sm disabled:opacity-50"
-          >
-            下一页
-          </button>
+            USDT
+          </div>
+        </div>
+        <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px", textAlign: "right" }}>
+          Min: 1 USDT
+        </div>
+      </div>
+
+      {/* Transaction Hash (tx_id) */}
+      <div
+        style={{
+          marginTop: "20px",
+          background: "white",
+          borderRadius: "16px",
+          padding: "16px",
+          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+          border: "1px solid #e5e7eb",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "14px", color: "#4b5563", marginBottom: "8px" }}>
+          <AlertCircle style={{ width: "16px", height: "16px", color: "#ea580c" }} />
+          Transaction Hash (tx_id)
+        </div>
+        <input
+          type="text"
+          value={txId}
+          onChange={(e) => setTxId(e.target.value)}
+          placeholder="Paste transaction hash here"
+          style={{
+            width: "100%",
+            padding: "12px",
+            border: "2px solid #fdba74",
+            borderRadius: "12px",
+            fontSize: "14px",
+            color: "#1f2937",
+            outline: "none",
+          }}
+        />
+        <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+          After payment, copy the transaction hash from your wallet and paste it here.
+        </div>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div
+          style={{
+            marginTop: "12px",
+            backgroundColor: "#fee2e2",
+            border: "1px solid #fca5a5",
+            color: "#dc2626",
+            padding: "12px",
+            borderRadius: "12px",
+            fontSize: "14px",
+          }}
+        >
+          {error}
         </div>
       )}
+
+      {/* Reminder */}
+      <div
+        style={{
+          marginTop: "16px",
+          background: "linear-gradient(to right, #f0fdf4, #ecfdf5)",
+          border: "1px solid #86efac",
+          borderRadius: "16px",
+          padding: "16px",
+          fontSize: "12px",
+        }}
+      >
+        <strong style={{ color: "#166534" }}>Important:</strong>
+        <br />
+        After payment, funds arrive in <strong>30 seconds</strong>. If delayed, refresh or contact support.
+      </div>
+
+      {/* Submit Button */}
+      <button
+        onClick={handleSubmit}
+        disabled={loading || !selectedChannel || !amount || !txId.trim() || fetching}
+        style={{
+          marginTop: "24px",
+          width: "100%",
+          padding: "16px 0",
+          borderRadius: "16px",
+          fontWeight: "bold",
+          fontSize: "18px",
+          boxShadow: "0 10px 20px rgba(0,0,0,0.1)",
+          transition: "all 0.3s",
+          cursor: loading || !selectedChannel || !amount || !txId.trim() || fetching ? "not-allowed" : "pointer",
+          background:
+            loading || !selectedChannel || !amount || !txId.trim() || fetching
+              ? "#d1d5db"
+              : "linear-gradient(to right, #f97316, #ec4899)",
+          color: loading || !selectedChannel || !amount || !txId.trim() || fetching ? "#6b7280" : "white",
+          opacity: loading || !selectedChannel || !amount || !txId.trim() || fetching ? 0.7 : 1,
+        }}
+        onMouseEnter={(e) => {
+          if (!(loading || !selectedChannel || !amount || !txId.trim() || fetching)) {
+            e.target.style.transform = "scale(1.02)";
+          }
+        }}
+        onMouseLeave={(e) => (e.target.style.transform = "scale(1)")}
+      >
+        {loading ? "Submitting..." : "Submit Recharge"}
+      </button>
     </div>
   );
 }

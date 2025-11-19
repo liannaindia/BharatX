@@ -8,8 +8,8 @@
     "start": "vite preview"
   },
   "engines": {
-  "node": "16.x"
-},
+    "node": "16.x"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "@vitejs/plugin-react": "^4.3.1",

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "../supabaseClient";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
-export default function Withdraw({ setTab, userId, balance, availableBalance }) {
+export default function Withdraw() {
+  const navigate = useNavigate();
+  const { userId, balance, availableBalance } = useOutletContext();
   const [tab, setTabState] = useState("request");
   const [walletAddress, setWalletAddress] = useState("");
   const [newAddress, setNewAddress] = useState("");
@@ -172,7 +175,7 @@ export default function Withdraw({ setTab, userId, balance, availableBalance }) 
       >
         <ArrowLeft
           style={{ width: "24px", height: "24px", color: "#FF6B35", cursor: "pointer" }}
-          onClick={() => setTab("home")}
+          onClick={() => navigate("/")}
         />
         <h2 style={{ fontSize: "20px", fontWeight: "bold", color: "#FF6B35" }}>Withdraw</h2>
       </div>

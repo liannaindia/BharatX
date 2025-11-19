@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient"; // 引入supabase客户端
-import banner1 from '../image/1.png';  
+import banner1 from '../image/1.png';
 import banner2 from '../image/2.png';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { Search, Wallet, Send, Headphones, Gift } from "lucide-react"; // 引入需要的图标
 
 const Banner = ({ banners, bannerIndex }) => (
@@ -25,77 +25,84 @@ const Banner = ({ banners, bannerIndex }) => (
   </div>
 );
 
-const MarketDataSection = ({ setTab }) => (
-  <div className="bg-white rounded-2xl shadow-sm mx-4 mt-3 p-4 border border-slate-100">
-    <div className="grid grid-cols-4 mt-4 text-center text-xs text-slate-700">
-      <div onClick={() => setTab("recharge")} className="cursor-pointer flex flex-col items-center gap-1">
-        <Wallet className="w-5 h-5 text-yellow-500" />
-        <span>Recharge</span>
-      </div>
-      <div onClick={() => setTab("withdraw")} className="cursor-pointer flex flex-col items-center gap-1">
-        <Send className="w-5 h-5 text-orange-500 rotate-180" />
-        <span>Withdraw</span>
-      </div>
-      <div onClick={() => setTab("invite")} className="cursor-pointer flex flex-col items-center gap-1">
-        <Gift className="w-5 h-5 text-indigo-500" />
-        <span>Invite</span>
-      </div>
-      <div onClick={() => window.open("https://t.me/ganeshsupport", "_blank")} className="cursor-pointer flex flex-col items-center gap-1">
-        <Headphones className="w-5 h-5 text-green-500" />
-        <span>Support</span>
+const MarketDataSection = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="bg-white rounded-2xl shadow-sm mx-4 mt-3 p-4 border border-slate-100">
+      <div className="grid grid-cols-4 mt-4 text-center text-xs text-slate-700">
+        <div onClick={() => navigate("/recharge")} className="cursor-pointer flex flex-col items-center gap-1">
+          <Wallet className="w-5 h-5 text-yellow-500" />
+          <span>Recharge</span>
+        </div>
+        <div onClick={() => navigate("/withdraw")} className="cursor-pointer flex flex-col items-center gap-1">
+          <Send className="w-5 h-5 text-orange-500 rotate-180" />
+          <span>Withdraw</span>
+        </div>
+        <div onClick={() => navigate("/invite")} className="cursor-pointer flex flex-col items-center gap-1">
+          <Gift className="w-5 h-5 text-indigo-500" />
+          <span>Invite</span>
+        </div>
+        <div onClick={() => window.open("https://t.me/ganeshsupport", "_blank")} className="cursor-pointer flex flex-col items-center gap-1">
+          <Headphones className="w-5 h-5 text-green-500" />
+          <span>Support</span>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-// ✅ 增强版 BalanceSection，动态显示当天 PnL
-const BalanceSection = ({ isLoggedIn, balance, handleLoginRedirect, setTab, pnlToday }) => (
-  <div className="text-center mt-1">
-    {!isLoggedIn ? (
-      <>
-        <div className="mb-4">
-          <p className="text-base text-slate-500">Welcome To Explore The World of Digital Ganesh.</p>
-        </div>
-        <button
-          className="bg-yellow-400 hover:bg-yellow-500 text-sm font-medium text-slate-900 rounded-full px-4 py-1.5 transition"
-          onClick={handleLoginRedirect}
-        >
-          Login / Register
-        </button>
-      </>
-    ) : (
-      <>
-        <div className="bg-white rounded-2xl shadow-sm mx-4 mt-3 p-4 border border-slate-100">
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="text-xs text-slate-500">Total Assets (USDT)</div>
-              <div className="text-2xl font-bold mt-1">{balance.toFixed(2)}</div>
-              <div className="text-xs text-slate-500 mt-1">
-                Pnl Today {pnlToday.toFixed(2)} USDT
-              </div>
-            </div>
-            <button
-              className="bg-yellow-400 hover:bg-yellow-500 text-sm font-medium text-slate-900 rounded-full px-4 py-1.5 transition"
-              onClick={() => setTab("trade")}
-            >
-              Go Trade
-            </button>
+// ✅ 增强版 BalanceSection,动态显示当天 PnL
+const BalanceSection = ({ isLoggedIn, balance, handleLoginRedirect, pnlToday }) => {
+  const navigate = useNavigate();
+  return (
+    <div className="text-center mt-1">
+      {!isLoggedIn ? (
+        <>
+          <div className="mb-4">
+            <p className="text-base text-slate-500">Welcome To Explore The World of Digital Ganesh.</p>
           </div>
-        </div>
-      </>
-    )}
-  </div>
-);
+          <button
+            className="bg-yellow-400 hover:bg-yellow-500 text-sm font-medium text-slate-900 rounded-full px-4 py-1.5 transition"
+            onClick={handleLoginRedirect}
+          >
+            Login / Register
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="bg-white rounded-2xl shadow-sm mx-4 mt-3 p-4 border border-slate-100">
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="text-xs text-slate-500">Total Assets (USDT)</div>
+                <div className="text-2xl font-bold mt-1">{balance.toFixed(2)}</div>
+                <div className="text-xs text-slate-500 mt-1">
+                  Pnl Today {pnlToday.toFixed(2)} USDT
+                </div>
+              </div>
+              <button
+                className="bg-yellow-400 hover:bg-yellow-500 text-sm font-medium text-slate-900 rounded-full px-4 py-1.5 transition"
+                onClick={() => navigate("/trade")}
+              >
+                Go Trade
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
-export default function Home({ setTab, isLoggedIn: propIsLoggedIn }) {
+export default function Home() {
+  const { isLoggedIn: contextIsLoggedIn, balance: contextBalance } = useOutletContext();
   const [coins, setCoins] = useState([]);
   const [activeTab, setActiveTab] = useState("favorites");
   const [bannerIndex, setBannerIndex] = useState(0);
   const [localBalance, setLocalBalance] = useState(0);
   const [localIsLoggedIn, setLocalIsLoggedIn] = useState(false);
   const [pnlToday, setPnlToday] = useState(0); // ✅ 新增状态
-  const isLoggedIn = propIsLoggedIn !== undefined ? propIsLoggedIn : localIsLoggedIn;
-  const balance = localBalance;
+  const isLoggedIn = contextIsLoggedIn !== undefined ? contextIsLoggedIn : localIsLoggedIn;
+  const balance = contextBalance !== undefined ? contextBalance : localBalance;
   const navigate = useNavigate();
 
   const banners = [banner1, banner2];
@@ -269,7 +276,7 @@ export default function Home({ setTab, isLoggedIn: propIsLoggedIn }) {
   const displayed = getFilteredCoins();
 
   const handleLoginRedirect = () => {
-    setTab("login");
+    navigate("/login");
   };
 
   return (
@@ -278,7 +285,7 @@ export default function Home({ setTab, isLoggedIn: propIsLoggedIn }) {
       <div className="px-4 mt-4">
         <div
           className="flex items-center bg-white rounded-full shadow-sm py-2 px-4 cursor-pointer"
-          onClick={() => setTab("markets")}
+          onClick={() => navigate("/markets")}
         >
           <Search className="w-5 h-5 text-slate-500" />
           <input
@@ -298,12 +305,11 @@ export default function Home({ setTab, isLoggedIn: propIsLoggedIn }) {
         isLoggedIn={isLoggedIn}
         balance={balance}
         handleLoginRedirect={handleLoginRedirect}
-        setTab={setTab}
         pnlToday={pnlToday}
       />
 
       {/* Market Data Section */}
-      <MarketDataSection setTab={setTab} />
+      <MarketDataSection />
 
       {/* Market Data Filter Section */}
       <div className="bg-white rounded-2xl mx-4 mt-4 border border-slate-100 shadow-sm">

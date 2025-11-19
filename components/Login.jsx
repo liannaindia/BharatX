@@ -2,8 +2,11 @@
 import React, { useState } from "react";
 import { supabase } from "../supabaseClient";
 import { ArrowLeft } from "lucide-react";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
-export default function Login({ setTab, setIsLoggedIn, setUserId }) { // 新增 setUserId
+export default function Login() {
+  const navigate = useNavigate();
+  const { setIsLoggedIn, setUserId } = useOutletContext();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -47,7 +50,7 @@ export default function Login({ setTab, setIsLoggedIn, setUserId }) { // 新增 
 
       setIsLoggedIn(true);
       setUserId(data.id); // 关键：同步设置 userId
-      setTab("home");
+      navigate("/");
     } catch (error) {
       setError("An error occurred during login");
       console.error(error);
@@ -59,7 +62,7 @@ export default function Login({ setTab, setIsLoggedIn, setUserId }) { // 新增 
   return (
     <div className="max-w-md mx-auto bg-[#f5f7fb] pb-24 min-h-screen text-slate-900">
       <div className="flex items-center gap-3 py-3">
-        <ArrowLeft className="h-5 w-5 text-slate-700 cursor-pointer" onClick={() => setTab("home")} />
+        <ArrowLeft className="h-5 w-5 text-slate-700 cursor-pointer" onClick={() => navigate("/")} />
         <h2 className="font-semibold text-slate-800 text-lg">Login</h2>
       </div>
 
@@ -93,16 +96,15 @@ export default function Login({ setTab, setIsLoggedIn, setUserId }) { // 新增 
         <button
           onClick={handleLogin}
           disabled={isLoading}
-          className={`w-full text-slate-900 font-semibold py-3 rounded-xl mt-4 transition ${
-            isLoading ? 'bg-yellow-300 cursor-not-allowed' : 'bg-yellow-400 hover:bg-yellow-500'
-          }`}
+          className={`w-full text-slate-900 font-semibold py-3 rounded-xl mt-4 transition ${isLoading ? 'bg-yellow-300 cursor-not-allowed' : 'bg-yellow-400 hover:bg-yellow-500'
+            }`}
         >
           {isLoading ? 'Logging in...' : 'Login'}
         </button>
 
         <div className="mt-6 text-center text-sm text-slate-500">
           Don't have an account?{" "}
-          <button onClick={() => setTab("register")} className="text-yellow-500 font-semibold" disabled={isLoading}>
+          <button onClick={() => navigate("/register")} className="text-yellow-500 font-semibold" disabled={isLoading}>
             Create an account
           </button>
         </div>

@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
+import { useOutletContext } from "react-router-dom";
 
-export default function Positions({
-  isLoggedIn,
-  balance,
-  availableBalance,
-  userId,
-}) {
+export default function Positions() {
+  const { isLoggedIn, balance, availableBalance, userId } = useOutletContext();
   const [tab, setTab] = useState("pending");
   const [totalAssets, setTotalAssets] = useState(0);
   const [floatingPL, setFloatingPL] = useState(0);
@@ -149,21 +146,19 @@ export default function Positions({
       <div className="flex items-center border-b border-slate-200 mb-3">
         <button
           onClick={() => setTab("pending")}
-          className={`flex-1 text-center py-2 text-sm font-semibold border-b-2 transition ${
-            tab === "pending"
+          className={`flex-1 text-center py-2 text-sm font-semibold border-b-2 transition ${tab === "pending"
               ? "text-yellow-500 border-yellow-500"
               : "text-slate-500 border-transparent"
-          }`}
+            }`}
         >
           In Progress
         </button>
         <button
           onClick={() => setTab("completed")}
-          className={`flex-1 text-center py-2 text-sm font-semibold border-b-2 transition ${
-            tab === "completed"
+          className={`flex-1 text-center py-2 text-sm font-semibold border-b-2 transition ${tab === "completed"
               ? "text-yellow-500 border-yellow-500"
               : "text-slate-500 border-transparent"
-          }`}
+            }`}
         >
           Completed
         </button>
@@ -215,13 +210,12 @@ export default function Positions({
                 <div className="text-right">
                   <div>Order Earnings</div>
                   <div
-                    className={`font-semibold ${
-                      o.earnings.startsWith("+")
+                    className={`font-semibold ${o.earnings.startsWith("+")
                         ? "text-emerald-600"
                         : o.earnings.startsWith("-")
-                        ? "text-rose-600"
-                        : "text-slate-700"
-                    }`}
+                          ? "text-rose-600"
+                          : "text-slate-700"
+                      }`}
                   >
                     {o.earnings}
                   </div>
@@ -234,13 +228,12 @@ export default function Positions({
                   <div className="text-right">
                     Status <br />
                     <span
-                      className={`font-semibold ${
-                        o.status === "In Progress"
+                      className={`font-semibold ${o.status === "In Progress"
                           ? "text-yellow-500"
                           : o.status === "Rejected"
-                          ? "text-rose-600"
-                          : "text-emerald-600"
-                      }`}
+                            ? "text-rose-600"
+                            : "text-emerald-600"
+                        }`}
                     >
                       {o.status}
                     </span>

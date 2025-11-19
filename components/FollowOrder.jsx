@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { supabase } from "../supabaseClient";
 import { ArrowLeft, RefreshCw } from "lucide-react";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
-export default function FollowOrder({ setTab, userId, isLoggedIn }) {
+export default function FollowOrder() {
+  const navigate = useNavigate();
+  const { userId, isLoggedIn } = useOutletContext();
   const [activeTab, setActiveTab] = useState("completed");
   const [activeOrders, setActiveOrders] = useState([]);
   const [completedOrders, setCompletedOrders] = useState([]);
@@ -109,12 +112,11 @@ export default function FollowOrder({ setTab, userId, isLoggedIn }) {
     <div className="px-4 pb-24 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center mt-4 mb-3 relative">
-        <ArrowLeft className="h-5 w-5 text-slate-600 cursor-pointer" onClick={() => setTab("me")} />
+        <ArrowLeft className="h-5 w-5 text-slate-600 cursor-pointer" onClick={() => navigate("/me")} />
         <h2 className="flex-1 text-center text-lg font-bold text-slate-800">Follow Orders</h2>
         <RefreshCw
-          className={`h-5 w-5 absolute right-0 cursor-pointer ${
-            refreshing ? "animate-spin text-blue-500" : "text-slate-600"
-          }`}
+          className={`h-5 w-5 absolute right-0 cursor-pointer ${refreshing ? "animate-spin text-blue-500" : "text-slate-600"
+            }`}
           onClick={handleRefresh}
         />
       </div>
@@ -122,17 +124,15 @@ export default function FollowOrder({ setTab, userId, isLoggedIn }) {
       {/* Tabs */}
       <div className="grid grid-cols-2 mb-4">
         <button
-          className={`py-2 text-sm font-semibold border rounded-l-xl ${
-            activeTab === "active" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-300"
-          }`}
+          className={`py-2 text-sm font-semibold border rounded-l-xl ${activeTab === "active" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-300"
+            }`}
           onClick={() => setActiveTab("active")}
         >
           Active
         </button>
         <button
-          className={`py-2 text-sm font-semibold border rounded-r-xl ${
-            activeTab === "completed" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-300"
-          }`}
+          className={`py-2 text-sm font-semibold border rounded-r-xl ${activeTab === "completed" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-300"
+            }`}
           onClick={() => setActiveTab("completed")}
         >
           Completed
@@ -155,9 +155,8 @@ export default function FollowOrder({ setTab, userId, isLoggedIn }) {
                 <span className="text-xs text-slate-500">Order ID: {o.id}</span>
                 {o.status === "settled" && (
                   <span
-                    className={`text-sm font-bold ${
-                      o.order_profit_amount >= 0 ? "text-emerald-600" : "text-rose-600"
-                    }`}
+                    className={`text-sm font-bold ${o.order_profit_amount >= 0 ? "text-emerald-600" : "text-rose-600"
+                      }`}
                   >
                     {o.order_profit_amount >= 0 ? "+" : ""}
                     {Number(o.order_profit_amount).toFixed(2)} USDT

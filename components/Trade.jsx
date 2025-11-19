@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabaseClient";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
-export default function Trade({ setTab, balance, userId, isLoggedIn }) {
+export default function Trade() {
+  const navigate = useNavigate();
+  const { balance, userId, isLoggedIn } = useOutletContext();
   const [query, setQuery] = useState("");
   const [mentors, setMentors] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -166,7 +169,7 @@ export default function Trade({ setTab, balance, userId, isLoggedIn }) {
   };
 
   const handleRecharge = () => {
-    setTab("recharge");
+    navigate("/recharge");
   };
 
   return (

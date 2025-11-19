@@ -2,8 +2,11 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import { ArrowLeft, Shield, Zap, CheckCircle, Copy, AlertCircle } from "lucide-react";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
-export default function Recharge({ setTab, isLoggedIn, userId }) {
+export default function Recharge() {
+  const navigate = useNavigate();
+  const { isLoggedIn, userId } = useOutletContext();
   const [amount, setAmount] = useState("");
   const [txId, setTxId] = useState(""); // 交易哈希
   const [selectedChannel, setSelectedChannel] = useState(null);
@@ -49,7 +52,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
     // 登录校验
     if (!isLoggedIn || !userId) {
       alert("Please log in first.");
-      setTab("login");
+      navigate("/login");
       return;
     }
 
@@ -147,7 +150,7 @@ export default function Recharge({ setTab, isLoggedIn, userId }) {
       >
         <ArrowLeft
           style={{ width: "24px", height: "24px", color: "#ea580c", cursor: "pointer" }}
-          onClick={() => setTab("home")}
+          onClick={() => navigate("/")}
         />
         <h2 style={{ fontSize: "20px", fontWeight: "bold", color: "#7c2d12" }}>
           Recharge USDT

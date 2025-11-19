@@ -11,8 +11,11 @@ import {
   Download,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
-export default function Me({ setTab, userId, isLoggedIn, setIsLoggedIn, setUserId }) {
+export default function Me() {
+  const navigate = useNavigate();
+  const { userId, isLoggedIn, setIsLoggedIn, setUserId } = useOutletContext();
   const [balance, setBalance] = useState(0);
   const [availableBalance, setAvailableBalance] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -160,7 +163,7 @@ export default function Me({ setTab, userId, isLoggedIn, setIsLoggedIn, setUserI
     // 更新状态
     setIsLoggedIn(false);
     setUserId(null);
-    setTab("home");
+    navigate("/");
   };
 
   const formatNumber = (num) => {
@@ -189,9 +192,8 @@ export default function Me({ setTab, userId, isLoggedIn, setIsLoggedIn, setUserI
         <div className="flex items-center justify-between text-sm text-slate-500 mb-1">
           <span>Total Assets (USDT)</span>
           <Eye
-            className={`h-4 w-4 cursor-pointer transition ${
-              showBalance ? "text-slate-600" : "text-slate-400"
-            }`}
+            className={`h-4 w-4 cursor-pointer transition ${showBalance ? "text-slate-600" : "text-slate-400"
+              }`}
             onClick={() => setShowBalance(!showBalance)}
           />
         </div>
@@ -216,30 +218,29 @@ export default function Me({ setTab, userId, isLoggedIn, setIsLoggedIn, setUserI
           <div className="text-right">
             <div>PnL Today</div>
             <div
-              className={`font-bold ${
-                pnlToday > 0
+              className={`font-bold ${pnlToday > 0
                   ? "text-emerald-600"
                   : pnlToday < 0
-                  ? "text-rose-600"
-                  : "text-slate-800"
-              }`}
+                    ? "text-rose-600"
+                    : "text-slate-800"
+                }`}
             >
               {loading
                 ? "..."
                 : showBalance
-                ? `${pnlToday >= 0 ? "+" : ""}${formatNumber(pnlToday)}`
-                : "••••••"}
+                  ? `${pnlToday >= 0 ? "+" : ""}${formatNumber(pnlToday)}`
+                  : "••••••"}
             </div>
           </div>
         </div>
       </div>
 
-    
+
 
       {/* ===== Recharge / Withdraw Buttons ===== */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         <button
-          onClick={() => setTab("recharge")}
+          onClick={() => navigate("/recharge")}
           className="flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 py-4 shadow-sm hover:bg-slate-50 transition"
         >
           <Wallet className="h-6 w-6 text-blue-500 mb-1" />
@@ -247,7 +248,7 @@ export default function Me({ setTab, userId, isLoggedIn, setIsLoggedIn, setUserI
         </button>
 
         <button
-          onClick={() => setTab("withdraw")}
+          onClick={() => navigate("/withdraw")}
           className="flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 py-4 shadow-sm hover:bg-slate-50 transition"
         >
           <ArrowDownCircle className="h-6 w-6 text-orange-500 mb-1" />
@@ -286,10 +287,9 @@ export default function Me({ setTab, userId, isLoggedIn, setIsLoggedIn, setUserI
         ].map((item, i) => (
           <div
             key={i}
-            onClick={() => item.tab && setTab(item.tab)}
-            className={`flex items-center justify-between bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm hover:bg-slate-50 cursor-pointer transition ${
-              item.tab ? "" : "opacity-70"
-            }`}
+            onClick={() => item.tab && navigate(`/${item.tab}`)}
+            className={`flex items-center justify-between bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm hover:bg-slate-50 cursor-pointer transition ${item.tab ? "" : "opacity-70"
+              }`}
           >
             <div className="flex items-center gap-3">
               {item.icon}
@@ -298,13 +298,13 @@ export default function Me({ setTab, userId, isLoggedIn, setIsLoggedIn, setUserI
             <span className="text-slate-400">{">"}</span>
           </div>
         ))}
-          {/* ===== Logout Button ===== */}
-      <button
-        onClick={handleLogout}
-        className="w-full text-slate-900 font-semibold py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white"
-      >
-        Logout
-      </button>
+        {/* ===== Logout Button ===== */}
+        <button
+          onClick={handleLogout}
+          className="w-full text-slate-900 font-semibold py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white"
+        >
+          Logout
+        </button>
       </div>
     </div>
   );

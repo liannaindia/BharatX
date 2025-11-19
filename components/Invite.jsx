@@ -2,8 +2,11 @@
 import React, { useState, useEffect } from "react";
 import { ArrowLeft, Copy, X, ChevronDown, ChevronUp, Trophy } from "lucide-react";
 import { supabase } from "../supabaseClient";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
-export default function Invite({ setTab, userId, isLoggedIn }) {
+export default function Invite() {
+  const navigate = useNavigate();
+  const { userId, isLoggedIn } = useOutletContext();
   const [referralCode, setReferralCode] = useState("");
   const [downlineCount, setDownlineCount] = useState(0);
   const [downlineUsers, setDownlineUsers] = useState([]);
@@ -60,29 +63,29 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
   }, [userId, isLoggedIn]);
 
   // === 加载下线树数据（关键修复）===
- const loadTreeData = async () => {
-  if (!userId || isNaN(userId) || Number(userId) <= 0) {
-    console.warn("Invalid userId:", userId);
-    setLoading(false);
-    return;
-  }
-
-  const uid = parseInt(userId, 10);
-  
-  console.log("Calling RPC with:", { p_user_id: uid }); // 调试必加！
-
-  try {
-    setLoading(true);
-
-    const { data: treeData, error: treeErr } = await supabase
-      .rpc("get_referral_tree", { p_user_id: uid }); // 必须是 p_user_id
-
-    if (treeErr) {
-      console.error("RPC Error:", treeErr);
-      throw treeErr;
+  const loadTreeData = async () => {
+    if (!userId || isNaN(userId) || Number(userId) <= 0) {
+      console.warn("Invalid userId:", userId);
+      setLoading(false);
+      return;
     }
 
-  
+    const uid = parseInt(userId, 10);
+
+    console.log("Calling RPC with:", { p_user_id: uid }); // 调试必加！
+
+    try {
+      setLoading(true);
+
+      const { data: treeData, error: treeErr } = await supabase
+        .rpc("get_referral_tree", { p_user_id: uid }); // 必须是 p_user_id
+
+      if (treeErr) {
+        console.error("RPC Error:", treeErr);
+        throw treeErr;
+      }
+
+
 
       // 统计
       let l1 = 0, l2 = 0, l3 = 0, effective = 0;
@@ -186,7 +189,7 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
       <div className="flex items-center gap-3 py-3">
         <ArrowLeft
           className="h-5 w-5 text-slate-700 cursor-pointer"
-          onClick={() => setTab("home")}
+          onClick={() => navigate("/")}
         />
         <h2 className="font-semibold text-slate-800 text-lg">Invite</h2>
       </div>
@@ -329,9 +332,8 @@ export default function Invite({ setTab, userId, isLoggedIn }) {
                           {users.map((user, i) => (
                             <div
                               key={i}
-                              className={`flex justify-between items-center p-3 rounded-lg ${
-                                user.total_recharge >= 115 ? "bg-green-50 border border-green-300" : "bg-slate-50"
-                              }`}
+                              className={`flex justify-between items-center p-3 rounded-lg ${user.total_recharge >= 115 ? "bg-green-50 border border-green-300" : "bg-slate-50"
+                                }`}
                             >
                               <div>
                                 <div className="font-mono text-slate-700">

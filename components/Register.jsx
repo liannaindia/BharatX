@@ -2,8 +2,11 @@
 import React, { useState } from "react";
 import { supabase } from "../supabaseClient";
 import { ArrowLeft, Copy } from "lucide-react";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
-export default function Register({ setTab, setIsLoggedIn, setUserId }) {
+export default function Register() {
+  const navigate = useNavigate();
+  const { setIsLoggedIn, setUserId } = useOutletContext();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -108,7 +111,7 @@ export default function Register({ setTab, setIsLoggedIn, setUserId }) {
       setGeneratedCode(myReferralCode);   // 成功后展示自己的邀请码
       setIsLoggedIn(true);
       setUserId(data.id);
-      setTab("home");
+      navigate("/");
     } catch (err) {
       console.error(err);
       setError(err.message || "Registration failed");
@@ -128,7 +131,7 @@ export default function Register({ setTab, setIsLoggedIn, setUserId }) {
       <div className="flex items-center gap-3 py-3">
         <ArrowLeft
           className="h-5 w-5 text-slate-700 cursor-pointer"
-          onClick={() => setTab("home")}
+          onClick={() => navigate("/")}
         />
         <h2 className="font-semibold text-slate-800 text-lg">Register</h2>
       </div>
@@ -198,9 +201,8 @@ export default function Register({ setTab, setIsLoggedIn, setUserId }) {
         <button
           onClick={handleRegister}
           disabled={isLoading}
-          className={`w-full text-slate-900 font-semibold py-3 rounded-xl mt-4 transition ${
-            isLoading ? "bg-yellow-300 cursor-not-allowed" : "bg-yellow-400 hover:bg-yellow-500"
-          }`}
+          className={`w-full text-slate-900 font-semibold py-3 rounded-xl mt-4 transition ${isLoading ? "bg-yellow-300 cursor-not-allowed" : "bg-yellow-400 hover:bg-yellow-500"
+            }`}
         >
           {isLoading ? "Registering..." : "Register"}
         </button>
@@ -224,7 +226,7 @@ export default function Register({ setTab, setIsLoggedIn, setUserId }) {
           <span>
             Already have an account?{" "}
             <button
-              onClick={() => setTab("login")}
+              onClick={() => navigate("/login")}
               className="text-yellow-500 font-semibold"
               disabled={isLoading}
             >

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import { ArrowLeft, RefreshCw } from "lucide-react";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
-export default function Transactions({ setTab, userId, isLoggedIn }) {
+export default function Transactions() {
+  const navigate = useNavigate();
+  const { userId, isLoggedIn } = useOutletContext();
   const [activeTab, setActiveTab] = useState("recharges"); // recharges / withdraws
   const [recharges, setRecharges] = useState([]);
   const [withdraws, setWithdraws] = useState([]);
@@ -126,9 +129,8 @@ export default function Transactions({ setTab, userId, isLoggedIn }) {
         </div>
       </div>
       <div
-        className={`text-right font-bold ${
-          type === "recharge" ? "text-emerald-700" : "text-rose-700"
-        }`}
+        className={`text-right font-bold ${type === "recharge" ? "text-emerald-700" : "text-rose-700"
+          }`}
       >
         {type === "recharge" ? "+" : "-"}
         {Number(item.amount).toFixed(2)} USDT
@@ -144,15 +146,14 @@ export default function Transactions({ setTab, userId, isLoggedIn }) {
       <div className="flex items-center mt-4 mb-3 relative">
         <ArrowLeft
           className="h-5 w-5 text-slate-600 cursor-pointer"
-          onClick={() => setTab("me")}
+          onClick={() => navigate("/me")}
         />
         <h2 className="flex-1 text-center text-lg font-bold text-slate-800">
           Transactions
         </h2>
         <RefreshCw
-          className={`h-5 w-5 absolute right-0 cursor-pointer ${
-            refreshing ? "animate-spin text-blue-500" : "text-slate-600"
-          }`}
+          className={`h-5 w-5 absolute right-0 cursor-pointer ${refreshing ? "animate-spin text-blue-500" : "text-slate-600"
+            }`}
           onClick={handleRefresh}
         />
       </div>
@@ -160,21 +161,19 @@ export default function Transactions({ setTab, userId, isLoggedIn }) {
       {/* ===== Toggle Tabs ===== */}
       <div className="flex justify-center mb-5">
         <button
-          className={`flex-1 py-2 rounded-l-xl text-sm font-semibold border ${
-            activeTab === "recharges"
+          className={`flex-1 py-2 rounded-l-xl text-sm font-semibold border ${activeTab === "recharges"
               ? "bg-blue-600 text-white border-blue-600"
               : "bg-white text-slate-600 border-slate-300"
-          }`}
+            }`}
           onClick={() => setActiveTab("recharges")}
         >
           Recharges
         </button>
         <button
-          className={`flex-1 py-2 rounded-r-xl text-sm font-semibold border ${
-            activeTab === "withdraws"
+          className={`flex-1 py-2 rounded-r-xl text-sm font-semibold border ${activeTab === "withdraws"
               ? "bg-blue-600 text-white border-blue-600"
               : "bg-white text-slate-600 border-slate-300"
-          }`}
+            }`}
           onClick={() => setActiveTab("withdraws")}
         >
           Withdraws

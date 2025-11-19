@@ -21,6 +21,10 @@ import Me from "./components/Me.jsx";
 import Recharge from "./components/Recharge.jsx";
 import Withdraw from "./components/Withdraw.jsx";
 import Invite from "./components/Invite.jsx";
+import Login from "./components/Login.jsx";
+import Register from "./components/Register.jsx";
+import FollowOrder from "./components/FollowOrder.jsx";
+import Transactions from "./components/Transactions.jsx";
 
 // ==================== 后台组件 ====================
 import AdminLogin from "./Backend/AdminLogin.jsx";
@@ -93,6 +97,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="recharge" element={<Recharge />} />
           <Route path="withdraw" element={<Withdraw />} />
           <Route path="invite" element={<Invite />} />
+          <Route path="login" element={<Login />} />
+          <Route path="register" element={<Register />} />
+          <Route path="followorder" element={<FollowOrder />} />
+          <Route path="transactions" element={<Transactions />} />
         </Route>
 
         {/* ==================== 后台独立登录页 ==================== */}

@@ -1,25 +1,14 @@
 import React, { useState, useEffect } from "react";
-import HomePage from "./components/Home.jsx";
-import MarketsPage from "./components/Markets.jsx";
-import TradePage from "./components/Trade.jsx";
-import PositionsPage from "./components/Positions.jsx";
-import MePage from "./components/Me.jsx";
-import RechargePage from "./components/Recharge.jsx";
-import WithdrawPage from "./components/Withdraw.jsx";
-import InvitePage from "./components/Invite.jsx";
-import LoginPage from "./components/Login.jsx";
-import RegisterPage from "./components/Register.jsx";
-import FollowOrderPage from "./components/FollowOrder.jsx";
+import { Outlet, useLocation } from "react-router-dom";
 import BottomNav from "./BottomNav";
-import TransactionsPage from "./components/Transactions.jsx";
 import { supabase } from "./supabaseClient";
 
 export default function App() {
-  const [tab, setTab] = useState("home");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [balance, setBalance] = useState(0);
   const [availableBalance, setAvailableBalance] = useState(0);
   const [userId, setUserId] = useState(null);
+  const location = useLocation();
 
   // 修复 1：实时监听 localStorage 变化（关键！）
   useEffect(() => {
@@ -136,43 +125,19 @@ export default function App() {
     };
   }, [isLoggedIn, userId]); // 依赖 isLoggedIn 和 userId
 
-  const renderPage = () => {
-    switch (tab) {
-      case "markets":
-        return <MarketsPage setTab={setTab} />;
-      case "login":
-        return <LoginPage setTab={setTab} setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />; // 新增 setUserId
-      case "register":
-        return <RegisterPage setTab={setTab} setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />; // 新增 setUserId
-      case "trade":
-        return <TradePage setTab={setTab} isLoggedIn={isLoggedIn} balance={balance} availableBalance={availableBalance} userId={userId} />;
-      case "positions":
-        return <PositionsPage setTab={setTab} isLoggedIn={isLoggedIn} balance={balance} availableBalance={availableBalance} userId={userId} />;
-      case "me":
-        return <MePage setTab={setTab} balance={balance} availableBalance={availableBalance} isLoggedIn={isLoggedIn} userId={userId} setIsLoggedIn={setIsLoggedIn} setUserId={setUserId} />;
-      case "transactions":
-        return <TransactionsPage setTab={setTab} userId={userId} isLoggedIn={isLoggedIn} />;
-      case "followorder":
-        return <FollowOrderPage setTab={setTab} userId={userId} isLoggedIn={isLoggedIn} />;
-      case "recharge":
-        return <RechargePage setTab={setTab} balance={balance} isLoggedIn={isLoggedIn} userId={userId} />;
-      case "withdraw":
-        return <WithdrawPage setTab={setTab} balance={balance} availableBalance={availableBalance} isLoggedIn={isLoggedIn} userId={userId} />;
-      case "invite":
-        return <InvitePage setTab={setTab} userId={userId} isLoggedIn={isLoggedIn} />;
-      default:
-        return <HomePage setTab={setTab} isLoggedIn={isLoggedIn} balance={balance} />;
-    }
-  };
+  // Hide BottomNav on specific routes if needed, or keep it always visible
+  // For now, we keep it visible as per original design, but maybe hide on login/register if desired?
+  // The original design had BottomNav always visible but switching tabs. 
+  // Let's keep it simple.
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <div className="max-w-md mx-auto bg-[#f5f7fb] pb-24 min-h-screen text-slate-900">
-        {renderPage()}
+        <Outlet context={{ isLoggedIn, balance, availableBalance, userId, setIsLoggedIn, setUserId }} />
       </div>
 
       <div className="max-w-md mx-auto w-full fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-none">
-        <BottomNav tab={tab} setTab={setTab} />
+        <BottomNav />
       </div>
     </div>
   );
